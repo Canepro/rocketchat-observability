@@ -1,13 +1,29 @@
 global:
-  scrape_interval: 15s
+  # Scrape each target every 30 seconds
+  scrape_interval: 30s
 
 scrape_configs:
+  # Self-monitor Prometheus
   - job_name: prometheus
     static_configs:
       - targets: ["prometheus:9090"]
+
+  # Node Exporter for host metrics
   - job_name: node
     static_configs:
       - targets: ["node-exporter:9100"]
+
+  # MongoDB Exporter for database metrics
   - job_name: mongodb
     static_configs:
       - targets: ["mongodb-exporter:9216"]
+
+  # Rocket.Chat metrics endpoint
+  - job_name: rocketchat
+    static_configs:
+      - targets: ["rocketchat:9458"]
+
+  # Traefik metrics endpoint
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:9096"]

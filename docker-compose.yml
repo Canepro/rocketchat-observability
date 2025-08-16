@@ -1,75 +1,154 @@
 version: "3.9"
+
 services:
-  traefik:
-    image: 
+  # Message broker for distributed Rocket.Chat instances
+  nats:
+    image: ${NATS_IMAGE}
+    restart: always
+    command: --http_port 8222
+    expose:
+      - "4222"
+      - "8222"
+
+  # Export NATS metrics for Prometheus
+  nats-exporter:
+    image: ${NATS_EXPORTER_IMAGE}
+    depends_on:
+      - nats
     command:
-      - --api.insecure=true
-      - --providers.docker=true
-      - --entrypoints.web.address=:80
-    ports:
-      - ":80"
-      - "8081:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    labels:
-      - "traefik.enable=true"
+      - -healthz
+      - -varz
+      - http://nats:8222
+    expose:
+      - "7777"
 
+  # MongoDB database with replica set for oplog support
   mongo:
-    image: 
-    command: ["--replSet", "rs0", "--bind_ip_all"]
+    image: ${MONGO_IMAGE}
+    restart: always
+    command: ["--replSet", "${MONGODB_REPLICA_SET_NAME}", "--bind_ip_all"]
+    environment:
+      # Allow empty password for local development only
+      ALLOW_EMPTY_PASSWORD: "yes"
     volumes:
-      - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongo", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - mongo-data:/bitnami/mongodb
+    ports:
+      - "${MONGODB_BIND_IP}:${MONGODB_PORT_NUMBER}:${MONGODB_PORT_NUMBER}"
 
-  rocketchat:
-    image: 
+  # Export MongoDB metrics for Prometheus
+  mongodb-exporter:
+    image: ${MONGODB_EXPORTER_IMAGE}
     depends_on:
       - mongo
     environment:
-      MONGO_URL: mongodb://mongo:27017/rocketchat?replicaSet=rs0
-      ROOT_URL: http://localhost:
-      PORT: "3000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rocketchat.rule=PathPrefix(/)"
-      - "traefik.http.routers.rocketchat.entrypoints=web"
-      - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
-    ports:
-      - ":3000"
+      MONGODB_URI: mongodb://mongo:${MONGODB_PORT_NUMBER}
+    expose:
+      - "9216"
 
+  # Prometheus collects metrics from all services
   prometheus:
-    image: 
+    image: ${PROMETHEUS_IMAGE}
+    restart: always
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE}
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME}
+      - --web.listen-address=:9090
+      - --config.file=/etc/prometheus/prometheus.yml
     ports:
-      - ":9090"
+      - "${PROMETHEUS_LISTEN_ADDR}:${PROMETHEUS_PORT}:9090"
 
+  # Node Exporter exposes host machine metrics
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE}
+    restart: always
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys:/host/sys:ro
+      - /proc:/host/proc:ro
+      - /dev:/host/dev:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    expose:
+      - "9100"
+
+  # Grafana for dashboards and alerts
   grafana:
-    image: 
-    ports:
-      - ":3000"
+    image: ${GRAFANA_IMAGE}
+    restart: always
     environment:
-      - GF_SECURITY_ADMIN_USER=
-      - GF_SECURITY_ADMIN_PASSWORD=
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_ANONYMOUS_ORG_NAME: Main Org.
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SERVER_ROOT_URL: http://${GRAFANA_DOMAIN}${GRAFANA_PATH}/
     volumes:
       - grafana-data:/var/lib/grafana
-
-  node-exporter:
-    image: 
     ports:
-      - "9100:9100"
+      - "${BIND_IP}:${GRAFANA_HOST_PORT}:3000"
 
-  mongodb-exporter:
-    image: 
+  # Traefik reverse proxy terminates HTTP/S and routes to services
+  traefik:
+    image: ${TRAEFIK_IMAGE}
+    restart: always
     environment:
-      - MONGODB_URI=mongodb://mongo:27017
+      DOMAIN: ${DOMAIN}
+      GRAFANA_DOMAIN: ${GRAFANA_DOMAIN}
+      GRAFANA_PATH: ${GRAFANA_PATH}
+      TRAEFIK_PROTOCOL: ${TRAEFIK_PROTOCOL}
+    command:
+      - --api.insecure=${TRAEFIK_API_INSECURE}
+      - --providers.docker=false
+      - --providers.file.filename=/traefik_config/${TRAEFIK_PROTOCOL}/dynamic.yml
+      - --entrypoints.http.address=:${TRAEFIK_HTTP_PORT}
+      - --entrypoints.https.address=:${TRAEFIK_HTTPS_PORT}
+      - --entrypoints.metrics.address=:9096
+      - --metrics.prometheus=true
+      - --certificatesresolvers.le.acme.tlschallenge=${LETSENCRYPT_ENABLED}
+      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
     ports:
-      - "9216:9216"
+      - "${TRAEFIK_HTTP_PORT}:${TRAEFIK_HTTP_PORT}"
+      - "${TRAEFIK_DASHBOARD_PORT}:8080"
+      - "${TRAEFIK_HTTPS_PORT}:${TRAEFIK_HTTPS_PORT}"
+    volumes:
+      - traefik-ssl:/letsencrypt:rw
+
+  # Rocket.Chat application
+  rocketchat:
+    image: ${ROCKETCHAT_IMAGE}
+    restart: always
+    depends_on:
+      - mongo
+      - nats
+    environment:
+      MONGO_URL: mongodb://mongo:${MONGODB_PORT_NUMBER}/rocketchat?replicaSet=${MONGODB_REPLICA_SET_NAME}
+      ROOT_URL: ${ROOT_URL}
+      PORT: ${HOST_PORT}
+      DEPLOY_METHOD: docker
+      DEPLOY_PLATFORM: compose
+      REG_TOKEN: ${REG_TOKEN}
+      LICENSE_DEBUG: "true"
+      OVERWRITE_SETTING_Prometheus_Enabled: "true"
+      OVERWRITE_SETTING_Prometheus_Port: "${METRICS_PORT}"
+      TRANSPORTER: ${NATS_URL}
+      INSTANCE_IP: ""
+    ports:
+      - "${BIND_IP}:${HOST_PORT}:${HOST_PORT}"
+      - "${BIND_IP}:${METRICS_PORT}:${METRICS_PORT}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rocketchat.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.rocketchat.entrypoints=http,https"
+      - "traefik.http.services.rocketchat.loadbalancer.server.port=${HOST_PORT}"
 
 volumes:
   mongo-data:
   grafana-data:
+  traefik-ssl:
