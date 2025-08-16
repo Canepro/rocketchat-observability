@@ -38,13 +38,6 @@ A reference **Podman/Docker Compose stack** for local testing and observability 
 [NATS] -> [NATS Exporter :7777]
 [Host] -> [Node Exporter :9100]
 ```
-[Client] -> [Traefik :80/:443] -> [Rocket.Chat :3000]
-                           ├─> [Grafana :/grafana or :5050]
-                           └─> [Prometheus :9000]
-[MongoDB] <-> [MongoDB Exporter :9216]
-[NATS] -> [NATS Exporter :7777]
-[Host] -> [Node Exporter :9100]
-```
 
 ---
 
@@ -53,22 +46,20 @@ A reference **Podman/Docker Compose stack** for local testing and observability 
 
 ## Quickstart
 
-
-# Quickstart
-
 ```bash
 # Clone repo and prepare environment
 cp .env.example .env
 # Edit .env if needed (domains, ports, passwords)
+
+# Start the stack (preferred: Makefile wrapper)
+make up
+# or (direct):
+podman-compose up -d
+# or:
+docker compose up -d
 ```
 
 > **Never commit your real `.env` file to version control!**
-
-
-```bash
-podman-compose up -d
-# or: docker compose up -d
-```
 
 
 ### Access the services
