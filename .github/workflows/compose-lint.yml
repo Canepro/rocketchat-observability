@@ -53,7 +53,15 @@ jobs:
 
       - name: Check all required variables in .env.example are set
         run: |
-          missing_vars=$(grep -v '^#' .env.example | grep '=' | grep -E '=$' | cut -d= -f1)
+          # Variables that are intentionally optional in the example file
+          OPTIONAL_VARS='REG_TOKEN|GRAFANA_PATH'
+
+          # Find keys with empty values (ignore comments and whitespace)
+          missing_vars=$(grep -v '^\s*#' .env.example | grep '=' | sed 's/[[:space:]]*=[[:space:]]*/=/' | awk -F= '{ if ($2 == "" ) print $1 }')
+
+          # Filter out allowed optional vars
+          missing_vars=$(echo "$missing_vars" | grep -Ev "^(${OPTIONAL_VARS})$" || true)
+
           if [ -n "$missing_vars" ]; then
             echo "The following variables are unset in .env.example:" >&2
             echo "$missing_vars" >&2
