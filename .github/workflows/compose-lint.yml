@@ -6,9 +6,48 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  compose-lint:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [docker, podman]
+
     steps:
       - uses: actions/checkout@v4
-      - name: Docker Compose Config
-        run: docker compose config
+
+      - name: Ensure .env.example exists
+        run: |
+          test -f .env.example || { echo "Missing .env.example at repo root"; exit 1; }
+
+      - name: Set up Podman
+        if: matrix.engine == 'podman'
+        uses: redhat-actions/setup-podman@v2
+
+      - name: Show versions
+        shell: bash
+        run: |
+          if [ "${{ matrix.engine }}" = "docker" ]; then
+            docker --version
+            docker compose version
+          else
+            podman --version
+            podman version
+            podman info
+            podman compose version || true
+          fi
+
+      - name: Lint compose config with .env.example
+        shell: bash
+        run: |
+          if [ "${{ matrix.engine }}" = "docker" ]; then
+            docker compose --env-file .env.example config
+          else
+            # Prefer native `podman compose`; fallback to python podman-compose if needed
+            if podman compose version >/dev/null 2>&1; then
+              podman compose --env-file .env.example config
+            else
+              python3 -m pip install --user podman-compose
+              ~/.local/bin/podman-compose --env-file .env.example config
+            fi
+          fi
