@@ -1,14 +1,65 @@
-name: compose-lint
+name: Compose Lint
 
 on:
   push:
-    branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: compose-lint-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint:
+  compose-lint:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [docker, podman]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
-      - name: Docker Compose Config
-        run: docker compose config
+
+      - name: Ensure .env.example exists
+        run: |
+          test -f .env.example || { echo "Missing .env.example at repo root"; exit 1; }
+
+      - name: Ensure a compose file exists
+        run: |
+          test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml || { echo "Missing compose file"; exit 1; }
+
+      - name: Install Podman (podman matrix only)
+        if: matrix.engine == 'podman'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          python3 -m ensurepip --upgrade || sudo apt-get install -y python3-pip
+
+      - name: Show versions
+        run: |
+          if [ "${{ matrix.engine }}" = "docker" ]; then
+            docker --version
+            docker compose version
+          else
+            podman --version
+            podman version
+            podman info
+            podman compose version || true
+          fi
+
+      - name: Lint compose config with .env.example
+        run: |
+          if [ "${{ matrix.engine }}" = "docker" ]; then
+            docker compose --env-file .env.example config
+          else
+            if podman compose version >/dev/null 2>&1; then
+              podman compose --env-file .env.example config
+            else
+              python3 -m pip install --user podman-compose
+              ~/.local/bin/podman-compose --env-file .env.example config
+            fi
+          fi
