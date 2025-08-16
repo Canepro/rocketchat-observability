@@ -1,0 +1,75 @@
+version: "3.9"
+services:
+  traefik:
+    image: 
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --entrypoints.web.address=:80
+    ports:
+      - ":80"
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+
+  mongo:
+    image: 
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rocketchat:
+    image: 
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URL: mongodb://mongo:27017/rocketchat?replicaSet=rs0
+      ROOT_URL: http://localhost:
+      PORT: "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rocketchat.rule=PathPrefix(/)"
+      - "traefik.http.routers.rocketchat.entrypoints=web"
+      - "traefik.http.services.rocketchat.loadbalancer.server.port=3000"
+    ports:
+      - ":3000"
+
+  prometheus:
+    image: 
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - ":9090"
+
+  grafana:
+    image: 
+    ports:
+      - ":3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=
+      - GF_SECURITY_ADMIN_PASSWORD=
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+  node-exporter:
+    image: 
+    ports:
+      - "9100:9100"
+
+  mongodb-exporter:
+    image: 
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+    ports:
+      - "9216:9216"
+
+volumes:
+  mongo-data:
+  grafana-data:
