@@ -71,27 +71,21 @@ jobs:
       - name: Lint compose config with .env.example
         run: |
           if [ "${{ matrix.engine }}" = "docker" ]; then
-            # Test individual compose files
-            docker compose --env-file .env.example -f compose.database.yml config --quiet
-            docker compose --env-file .env.example -f compose.monitoring.yml config --quiet
-            docker compose --env-file .env.example -f compose.traefik.yml config --quiet
-            # Test combined stack (the way it's actually used)
-            docker compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config --quiet
+            # Test demo overlay (the way demo-up works) - this is the main deployment mode
+            docker compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml config --quiet
+            # Test production overlay (the way prod-up works) - this is the production deployment mode
+            docker compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.prod.yml -f compose.nats-exporter.yml config --quiet
           else
             if podman compose version >/dev/null 2>&1; then
-              # Test individual compose files
-              podman compose --env-file .env.example -f compose.database.yml config --quiet
-              podman compose --env-file .env.example -f compose.monitoring.yml config --quiet
-              podman compose --env-file .env.example -f compose.traefik.yml config --quiet
-              # Test combined stack (the way it's actually used)
-              podman compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config --quiet
+              # Test demo overlay (the way demo-up works) - this is the main deployment mode
+              podman compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml config --quiet
+              # Test production overlay (the way prod-up works) - this is the production deployment mode
+              podman compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.prod.yml -f compose.nats-exporter.yml config --quiet
             else
               python3 -m pip install --user podman-compose
-              # Test individual compose files
-              ~/.local/bin/podman-compose --env-file .env.example -f compose.database.yml config
-              ~/.local/bin/podman-compose --env-file .env.example -f compose.monitoring.yml config
-              ~/.local/bin/podman-compose --env-file .env.example -f compose.traefik.yml config
-              # Test combined stack (the way it's actually used)
-              ~/.local/bin/podman-compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config
+              # Test demo overlay (the way demo-up works) - this is the main deployment mode
+              ~/.local/bin/podman-compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml config
+              # Test production overlay (the way prod-up works) - this is the production deployment mode
+              ~/.local/bin/podman-compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.prod.yml -f compose.nats-exporter.yml config
             fi
           fi
