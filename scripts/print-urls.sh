@@ -57,9 +57,11 @@ if [[ -n "${DOMAIN:-}" && "$DOMAIN" != "localhost" ]]; then
   RC_URL="http://${DOMAIN}"
 fi
 
-# Grafana URL: prefer domain if provided, else subpath on base URL
+# Grafana URL: prefer GRAFANA_DOMAIN, then DOMAIN+path, then base URL+path
 if [[ -n "${GRAFANA_DOMAIN:-}" ]]; then
   GRAFANA_URL="http://${GRAFANA_DOMAIN}"
+elif [[ -n "${DOMAIN:-}" && "$DOMAIN" != "localhost" ]]; then
+  GRAFANA_URL="http://${DOMAIN}${GRAFANA_PATH}"
 else
   GRAFANA_URL="${BASE_URL}${GRAFANA_PATH}"
 fi
