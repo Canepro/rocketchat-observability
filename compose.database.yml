@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  # MongoDB database with replica set for oplog support
+  mongo:
+    image: ${MONGO_IMAGE}
+    restart: always
+    environment:
+      # Allow empty password for local development only
+      ALLOW_EMPTY_PASSWORD: "yes"
+      # MongoDB replica set configuration - simplified for local dev
+      MONGODB_REPLICA_SET_MODE: "primary"
+      MONGODB_REPLICA_SET_NAME: "${MONGODB_REPLICA_SET_NAME}"
+    volumes:
+      - mongo-data:/bitnami/mongodb
+
+  # Export MongoDB metrics for Prometheus
+  mongodb-exporter:
+    image: ${MONGODB_EXPORTER_IMAGE}
+    depends_on:
+      - mongo
+    environment:
+      MONGODB_URI: mongodb://mongo:${MONGODB_PORT_NUMBER}
+    expose:
+      - "9216"
+
+  # One-shot init to ensure MongoDB replica set is initialized
+  mongo-init-replica:
+    image: ${MONGO_IMAGE}
+    depends_on:
+      - mongo
+    restart: "no"
+    entrypoint: ["bash", "-lc"]
+    command:
+      - >-
+        sleep 5;
+        echo "Initializing MongoDB replica set (if needed)...";
+        mongosh --host mongo --port ${MONGODB_PORT_NUMBER} --eval '
+          try {
+            const s = rs.status();
+            if (s.ok === 1) { print("Replica set already initialized"); quit(0); }
+          } catch (e) { /* not initialized */ }
+          rs.initiate({ _id: "'${MONGODB_REPLICA_SET_NAME}'", members: [ { _id: 0, host: "mongo:'${MONGODB_PORT_NUMBER}'" } ] });
+        ' || true;
+
+  
+
+volumes:
+  mongo-data:
