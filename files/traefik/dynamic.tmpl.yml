@@ -28,6 +28,9 @@ http:
       middlewares:
         - grafana-strip
 
+    # Note: grafana-subdomain router requires GRAFANA_DOMAIN to be set
+    # If GRAFANA_DOMAIN is empty, this router will be invalid and should be removed
+    # during rendering via the render-traefik-config.sh script
     grafana-subdomain:
       rule: "Host(`${GRAFANA_DOMAIN}`)"
       entryPoints:

@@ -33,4 +33,11 @@ export TRAEFIK_PROTOCOL="${TRAEFIK_PROTOCOL:-http}"
 mkdir -p "$(dirname "$OUTPUT")"
 envsubst < "$TEMPLATE" > "$OUTPUT"
 
+# Remove invalid grafana-subdomain router if GRAFANA_DOMAIN is empty
+if [[ -z "${GRAFANA_DOMAIN:-}" ]]; then
+	echo "GRAFANA_DOMAIN is empty, removing grafana-subdomain router from config"
+	# Remove the entire grafana-subdomain router block (from router name to next section)
+	sed -i '/grafana-subdomain:/,/^[[:space:]]*[^[:space:]]/{ /^[[:space:]]*[^[:space:]]/!d; /grafana-subdomain:/d; }' "$OUTPUT"
+fi
+
 echo "Rendered Traefik dynamic config to $OUTPUT"
