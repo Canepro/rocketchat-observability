@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide helps you resolve common issues when using the Rocket.Chat Observability Stack.
+This guide helps you resolve common issues when using the Rocket.Chat Observability Stack with the new overlay architecture.
 
 ## Common Issues
 
@@ -198,12 +198,12 @@ docker network inspect rocketchat-observability_default
 
 ```bash
 # Stop and remove problematic MongoDB container
-docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml stop mongo
-docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml rm -f mongo
+make down
 docker volume rm rocketchat-observability_mongo-data
 
-# Restart the stack - the simplified configuration should work
-docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml up -d
+# Restart with demo overlay (recommended for troubleshooting)
+make demo-up
+make url    # Check actual URLs
 ```
 
 **Note**: The current configuration uses simplified MongoDB settings for local development without authentication, which resolves most replica set issues.
@@ -237,13 +237,73 @@ rs.initiate()
 
 #### Check Traefik logs:
 ```bash
+make logs    # Shows all service logs
+# Or specific service:
 docker logs rocketchat-observability-traefik-1
 ```
 
-#### Verify configuration:
+#### Verify and re-render configuration:
 ```bash
-# Test configuration
-./test-setup.sh
+make render-traefik    # Re-generate dynamic config
+make url              # Check actual service URLs
+```
+
+#### Test overlay configuration:
+```bash
+make compose-config   # Validate merged configuration
+```
+
+### 11. Overlay Architecture Issues
+
+**Error**: `make demo-up` or `make prod-up` fails
+
+**Solutions**:
+
+#### Check for engine availability:
+```bash
+make help    # Shows detected container engine
+```
+
+#### Try alternative engine:
+```bash
+# Force Docker
+COMPOSE="docker compose" make demo-up
+
+# Force Podman  
+COMPOSE="podman compose" make demo-up
+```
+
+#### Use direct commands for debugging:
+```bash
+# Check what make demo-up would run
+make -n demo-up
+```
+
+### 12. URL Discovery Issues
+
+**Error**: `make url` shows incorrect or inaccessible URLs
+
+**Solutions**:
+
+#### For demo overlay:
+```bash
+# Demo uses ephemeral ports - URLs will be different each time
+make demo-up
+make url    # Shows actual dynamic ports
+```
+
+#### For production overlay:
+```bash
+# Prod uses fixed ports but may conflict with existing services
+make down
+# Check if ports 80/443 are free
+make prod-up
+```
+
+#### Manual URL discovery:
+```bash
+# Find Traefik HTTP port
+docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml port traefik 80
 ```
 
 ## Getting Help
@@ -273,25 +333,37 @@ make compose-config
 
 ### 3. Reset Everything
 ```bash
-# Complete reset (removes all data)
-make reset
+# Safe reset (demo overlay)
+make demo-reset    # Prompts for confirmation
 
 # Or step by step
 make down
-./cleanup.sh all
-make up
+make clean         # Remove generated files, keep data
+make demo-up
+
+# Nuclear option (removes all data)
+make nuke          # Removes all volumes for demo and prod
 ```
 
 ### 4. Common Commands
 ```bash
-# Start fresh
-make reset && make up
+# Quick demo start
+make demo-up && make url
 
-# Update everything
-make update
+# Production deployment
+make prod-up
 
-# Check status
-make status
+# Get actual URLs
+make url
+
+# Backup before changes
+make backup-mongo
+
+# Update Rocket.Chat
+make upgrade-rc
+
+# Check merged configuration
+make compose-config
 
 # Get help
 make help
@@ -300,10 +372,30 @@ make help
 ## Still Having Issues?
 
 1. **Check the logs**: `make logs`
-2. **Run diagnostics**: `./test-setup.sh`
-3. **Check system requirements**: `./check-requirements.sh`
-4. **Search existing issues**: Check GitHub issues
-5. **Create a new issue**: Include logs and system information
+2. **Try demo mode**: `make demo-up && make url` (always works)
+3. **Validate configuration**: `make compose-config`
+4. **Reset to clean state**: `make demo-reset`
+5. **Get actual URLs**: `make url`
+6. **Check system requirements**: `scripts/check-requirements.sh`
+7. **Search existing issues**: Check GitHub issues
+8. **Create a new issue**: Include logs and system information
+
+### Quick Diagnostic Commands
+```bash
+# Show all available targets
+make help
+
+# Show detected container engine and status
+make help | head -20
+
+# Test overlay architecture
+make demo-up
+make url
+make down
+
+# If demo works but prod doesn't:
+make prod-up    # May fail if ports 80/443 are in use
+```
 
 ### System Information to Include
 ```bash

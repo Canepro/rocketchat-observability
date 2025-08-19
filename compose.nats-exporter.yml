@@ -1,0 +1,22 @@
+# Adds NATS Prometheus exporter and exposes it to Prometheus on the internal network.
+# Assumes there is a 'nats' service with monitoring endpoint at http://nats:8222
+services:
+  nats-exporter:
+    image: ${NATS_EXPORTER_IMAGE:-natsio/prometheus-nats-exporter:0.14.0}
+    command:
+      - -varz
+      - -connz
+      - -routez
+      - -subz
+      - -jsz
+      - -scrape_url
+      - http://nats:8222
+      - -addr
+      - 0.0.0.0
+      - -port
+      - "7777"
+    restart: unless-stopped
+    expose:
+      - "7777"
+    depends_on:
+      - nats

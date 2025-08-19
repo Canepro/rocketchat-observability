@@ -1,32 +1,39 @@
-# Migration Guide: Aligning with Official Rocket.Chat Compose Structure
+# Migration Guide: Engine-Agnostic Overlay Architecture
 
-This document outlines the changes made to align this repository with the official [Rocket.Chat compose repository](https://github.com/RocketChat/rocketchat-compose) while maintaining the observability objectives.
+This document outlines the evolution to a production-ready, engine-agnostic developer experience with demo/production overlays and unified tooling.
 
-## Key Changes Made
+## Key Features
 
-### 1. **Modular Compose Files**
-- **Before**: Single monolithic `docker-compose.yml` file
-- **After**: Separated into modular files:
-  - `compose.database.yml` - MongoDB and MongoDB Exporter
-  - `compose.monitoring.yml` - Prometheus, Grafana, Node Exporter, NATS, NATS Exporter
-  - `compose.traefik.yml` - Traefik reverse proxy
-  - `compose.yml` - Rocket.Chat application
+### 1. **Engine-Agnostic Design**
+- **Auto-detection**: Makefile automatically detects and uses Docker or Podman
+- **Rootless-friendly**: Demo mode uses ephemeral ports to avoid conflicts
+- **No docker.sock dependency**: Uses file-based Traefik configuration
 
-### 2. **Environment Configuration**
-- **Added**: `.env.example` file with comprehensive configuration options
-- **Improved**: Better variable organization and documentation
-- **Enhanced**: Support for both HTTP and HTTPS configurations
+### 2. **Deployment Overlays**
+- **Demo overlay** (`compose.demo.yml`): Ephemeral localhost ports, always deployable
+- **Production overlay** (`compose.prod.yml`): Fixed 80/443 with Let's Encrypt support  
+- **NATS monitoring** (`compose.nats-exporter.yml`): Comprehensive NATS observability
 
-### 3. **Traefik Configuration**
-- **Added**: Dynamic configuration files in `files/traefik_config/`
-  - `http/dynamic.yml` - HTTP routing configuration
-  - `https/dynamic.yml` - HTTPS routing with Let's Encrypt support
-- **Enhanced**: Proper service discovery and routing rules
+### 3. **Unified Makefile Interface**
+```bash
+make demo-up          # Start with ephemeral ports (no conflicts)
+make prod-up          # Start production-like with fixed ports
+make url              # Print effective access URLs
+make backup-mongo     # Create compressed MongoDB backup
+make upgrade-rc       # Safely upgrade Rocket.Chat
+make demo-reset       # Factory reset with confirmation
+```
 
-### 4. **Monitoring Improvements**
-- **Added**: NATS Exporter configuration in Prometheus
-- **Enhanced**: Complete metrics collection from all services
-- **Improved**: Better service isolation and modularity
+### 4. **Complete Observability Stack**
+- **Prometheus datasource**: Auto-provisioned in Grafana
+- **Curated dashboards**: Auto-downloaded for Rocket.Chat, MongoDB, Node Exporter, Traefik, NATS
+- **NATS monitoring**: Added NATS Prometheus exporter with scrape configuration
+- **Complete metrics**: All services instrumented and monitored
+
+### 5. **Dynamic Configuration Management**
+- **Traefik templating**: `dynamic.tmpl.yml` rendered via `envsubst` from `.env`
+- **Flexible routing**: Supports both path-based (`/grafana`) and subdomain routing
+- **Protocol switching**: Easy HTTP/HTTPS toggle with Let's Encrypt
 
 ## Migration Steps
 
@@ -37,118 +44,164 @@ This document outlines the changes made to align this repository with the offici
    cp .env .env.backup
    ```
 
-2. **Update to new structure**:
+2. **Update to new overlay architecture**:
    ```bash
    # Stop existing services
-   docker compose down
+   make down
    
    # Copy new environment template
    cp .env.example .env
    
-   # Edit .env with your custom values
-   # (ports, passwords, domains, etc.)
+   # Edit .env with your custom values (domains, ports, passwords, etc.)
    ```
 
-3. **Start with new modular structure**:
+3. **Start with new overlay system**:
    ```bash
-   docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml up -d
+   # Demo mode (recommended for development)
+   make demo-up
+   make url    # Shows actual URLs to access services
+   
+   # Or production mode (for staging/production)
+   make prod-up
    ```
 
 ### For New Users
 
-1. **Clone and setup**:
+1. **Quick start (always works, no port conflicts)**:
    ```bash
-   git clone https://github.com/Canepro/rocketchat-observability.git
+   git clone --depth 1 https://github.com/Canepro/rocketchat-observability.git
    cd rocketchat-observability
    cp .env.example .env
-   # Edit .env as needed
+   make demo-up
+   make url
    ```
 
-2. **Start the stack**:
+2. **Production-like deployment**:
    ```bash
-   docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml up -d
+   # Configure .env for your domain
+   echo "DOMAIN=chat.example.com" >> .env
+   echo "TRAEFIK_PROTOCOL=https" >> .env  
+   echo "LETSENCRYPT_ENABLED=true" >> .env
+   echo "LETSENCRYPT_EMAIL=you@example.com" >> .env
+   make prod-up
    ```
 
-## Benefits of New Structure
+## Benefits of New Architecture
 
-### 1. **Newbie-Friendly**
-- **One-click deployment** with `./start.sh` or `start.bat`
-- **Auto-detection** of Docker/Podman
-- **Smart Makefile** with helpful commands
-- **Requirements checker** to validate system
-- **Clear error messages** and guidance
+### 1. **Developer Experience**
+- **Always-deploy demo**: Ephemeral ports eliminate conflicts
+- **Engine auto-detection**: Works with Docker or Podman seamlessly
+- **URL discovery**: `make url` shows actual access URLs
+- **Safety workflows**: Confirmation prompts for destructive operations
 
-### 2. **Flexibility**
-- Deploy only needed components
-- Easy to exclude monitoring or database services
-- Customizable routing configurations
+### 2. **Production Ready**
+- **Let's Encrypt integration**: Automatic SSL certificates
+- **Backup workflows**: `make backup-mongo`, `make restore-mongo`
+- **Upgrade safety**: `make upgrade-rc` with automatic image pulling
+- **Configuration templating**: Dynamic Traefik config from `.env`
 
-### 3. **Maintainability**
-- Clear separation of concerns
-- Easier to update individual components
-- Better configuration management
+### 3. **Operational Excellence**
+- **Unified tooling**: Single Makefile interface across engines
+- **Complete observability**: Pre-provisioned dashboards and datasources
+- **Flexible routing**: Path-based or subdomain Grafana access
+- **NATS monitoring**: Full message broker observability
 
-### 4. **Production Ready**
-- Proper Traefik configuration
-- Let's Encrypt support
-- Enhanced security options
+### 4. **Cross-Platform**
+- **Engine-agnostic**: Docker and Podman support
+- **Rootless-friendly**: Demo mode works without privileged access
+- **Windows support**: PowerShell and batch script compatibility
+- **No docker.sock**: File-based Traefik avoids socket dependencies
 
-### 5. **Observability**
-- Complete metrics collection
-- NATS monitoring added
-- Better service isolation
+## Deployment Examples
 
-### 6. **Cross-Platform**
-- Works with Docker and Podman
-- Windows batch file support
-- Linux/macOS shell script support
-
-## Custom Deployment Examples
-
-### Minimal Setup (Rocket.Chat + Traefik only)
+### Quick Demo (Recommended)
 ```bash
-docker compose -f compose.traefik.yml -f compose.yml up -d
+make demo-up          # Always works, no port conflicts
+make url              # See actual URLs
 ```
 
-### With Database (no monitoring)
+### Production Deployment
 ```bash
-docker compose -f compose.database.yml -f compose.traefik.yml -f compose.yml up -d
+# Configure .env for your domain
+DOMAIN=chat.example.com
+TRAEFIK_PROTOCOL=https
+LETSENCRYPT_ENABLED=true
+LETSENCRYPT_EMAIL=you@example.com
+
+make prod-up          # Uses fixed 80/443 ports
 ```
 
-### Full Stack (recommended)
+### Advanced Operations
 ```bash
-docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml up -d
+make backup-mongo                    # Create timestamped backup
+# Edit .env to change ROCKETCHAT_IMAGE version
+make upgrade-rc                      # Pulls new image and restarts
+
+make demo-reset                      # Factory reset with confirmation
+make render-traefik                  # Re-render dynamic config
+make fetch-dashboards                # Update Grafana dashboards
 ```
 
 ## File Structure
 
 ```
 rocketchat-observability/
-├── compose.database.yml      # MongoDB services
-├── compose.monitoring.yml    # Monitoring stack
-├── compose.traefik.yml       # Reverse proxy
-├── compose.yml              # Rocket.Chat app
-├── .env.example             # Environment template
-├── prometheus.yml           # Prometheus config
+├── compose.yml                      # Rocket.Chat + NATS services
+├── compose.database.yml             # MongoDB + MongoDB Exporter
+├── compose.monitoring.yml           # Prometheus, Grafana, Node Exporter
+├── compose.traefik.yml              # Traefik reverse proxy
+├── compose.demo.yml                 # Demo overlay (ephemeral ports)
+├── compose.prod.yml                 # Production overlay (fixed ports)
+├── compose.nats-exporter.yml        # NATS monitoring overlay
+├── .env.example                     # Complete environment template
+├── Makefile                         # Unified tooling interface
 ├── files/
-│   └── traefik_config/
-│       ├── http/
-│       │   └── dynamic.yml  # HTTP routing
-│       └── https/
-│           └── dynamic.yml  # HTTPS routing
-├── Makefile                 # Build automation
-└── README.md               # Documentation
+│   ├── grafana/
+│   │   ├── download-dashboards.sh   # Dashboard fetcher
+│   │   ├── dashboards/imported/     # Auto-downloaded dashboards
+│   │   └── provisioning/            # Datasources & dashboard config
+│   ├── prometheus/
+│   │   └── prometheus.yml           # Scrape configuration
+│   └── traefik/
+│       ├── dynamic.tmpl.yml         # Template for dynamic config
+│       ├── http/dynamic.yml         # HTTP routing rules
+│       └── https/dynamic.yml        # HTTPS routing with Let's Encrypt
+├── scripts/
+│   ├── print-urls.sh                # URL discovery
+│   ├── render-traefik-config.sh     # Config templating
+│   └── confirm.sh                   # Safety prompts
+└── docs/
+    ├── MIGRATION_GUIDE.md           # This guide
+    └── TROUBLESHOOTING.md           # Issue resolution
 ```
 
-## Breaking Changes
+## New Command Patterns
 
-1. **Command syntax changed**: Must specify all compose files
-2. **Environment variables**: Some new variables added
-3. **Traefik configuration**: Now uses dynamic configuration files
-4. **Service discovery**: Improved but requires proper configuration
+**Old approach** (deprecated):
+```bash
+docker compose -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml up -d
+```
+
+**New overlay approach**:
+```bash
+make demo-up      # Uses demo overlay with ephemeral ports
+make prod-up      # Uses production overlay with fixed ports
+make url          # Discover actual URLs
+```
+
+## Migration Benefits
+
+1. **Zero conflicts**: Demo mode always works regardless of existing services
+2. **Production ready**: Built-in Let's Encrypt and backup workflows
+3. **Engine agnostic**: Seamless Docker/Podman switching
+4. **URL discovery**: No more guessing ports or domains
+5. **Safety first**: Confirmation prompts and backup workflows
+6. **Complete observability**: Pre-configured dashboards and metrics
 
 ## Support
 
-- Check the [official Rocket.Chat compose repository](https://github.com/RocketChat/rocketchat-compose) for reference
-- Review the `.env.example` file for all available configuration options
-- Use the Makefile for common operations: `make up`, `make down`, `make logs`
+- **Primary documentation**: `README.md` for complete usage guide
+- **Environment configuration**: `.env.example` shows all available options  
+- **Troubleshooting**: `docs/TROUBLESHOOTING.md` for common issues
+- **Help command**: `make help` shows all available targets
+- **URL discovery**: `make url` shows actual service URLs
