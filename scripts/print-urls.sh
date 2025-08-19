@@ -21,12 +21,27 @@ fi
 GRAFANA_PATH="${GRAFANA_PATH:-/grafana}"
 DOMAIN="${DOMAIN:-localhost}"
 
-# Determine mapped HTTP port for Traefik entrypoint :80
-HTTP_ADDR="$($COMPOSE_CMD $FILES port traefik 80 || true)"
+# Try to find Traefik port using docker directly (more reliable)
+HTTP_ADDR=""
 
+# First try: look for published port 80 on traefik container
+if command -v docker >/dev/null 2>&1; then
+  # Find traefik container and get port mapping
+  TRAEFIK_CONTAINER=$(docker ps --filter "name=traefik" --format "{{.Names}}" | head -1)
+  if [[ -n "$TRAEFIK_CONTAINER" ]]; then
+    HTTP_ADDR=$(docker port "$TRAEFIK_CONTAINER" 80 2>/dev/null | head -1 || true)
+  fi
+fi
+
+# Fallback: try using compose command
 if [[ -z "$HTTP_ADDR" ]]; then
-  echo "Traefik HTTP entrypoint (80) not published. If you used demo-up, Traefik should be published." >&2
-  exit 1
+  HTTP_ADDR="$($COMPOSE_CMD $FILES port traefik 80 2>/dev/null || true)"
+fi
+
+# If still no luck, assume localhost:80 (production mode)
+if [[ -z "$HTTP_ADDR" ]]; then
+  HTTP_ADDR="localhost:80"
+  echo "Warning: Could not detect Traefik port, assuming localhost:80" >&2
 fi
 
 BASE_URL="http://${HTTP_ADDR}"
