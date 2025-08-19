@@ -44,8 +44,8 @@ for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
         TRAEFIK_PORT=$(docker port rocketchat-observability-traefik-1 8080 2>/dev/null | cut -d: -f2)
         if [ -n "$TRAEFIK_PORT" ]; then
             echo "🔍 Traefik dashboard port detected: $TRAEFIK_PORT"
-            if check_service "Traefik" "http://localhost:$TRAEFIK_PORT/ping" 200; then
-                echo "✅ Traefik is healthy (dashboard: http://localhost:$TRAEFIK_PORT)"
+            if check_service "Traefik" "http://localhost:$TRAEFIK_PORT/" 308; then
+                echo "✅ Traefik is healthy (dashboard: http://localhost:$TRAEFIK_PORT/dashboard/)"
                 break
             elif [ $i -eq 1 ]; then
                 echo "⏳ Dashboard found but not responding yet, waiting..."
