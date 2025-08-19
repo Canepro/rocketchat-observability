@@ -3,8 +3,8 @@
 # Wait for services to be healthy before declaring success
 # Usage: ./wait-for-services.sh [timeout_seconds]
 
-TIMEOUT=${1:-300}  # Default 5 minutes
-INTERVAL=5
+TIMEOUT=${1:-600}  # Default 10 minutes for slower environments
+INTERVAL=10
 
 echo "🔄 Waiting for services to become healthy (timeout: ${TIMEOUT}s)..."
 
@@ -21,15 +21,29 @@ check_service() {
     fi
 }
 
-# Wait for MongoDB
+# Wait for MongoDB and replica set
 echo "⏳ Waiting for MongoDB..."
 for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
-    if docker exec rocketchat-observability-mongo-1 mongosh --eval "db.runCommand('ping')" >/dev/null 2>&1; then
+    if docker exec rocketchat-observability-mongo-1 mongosh --eval "
+        try { 
+            db.runCommand('ping'); 
+            const status = rs.status(); 
+            if (status.ok === 1 && status.myState === 1) { 
+                print('MongoDB and replica set healthy'); 
+            } else { 
+                quit(1); 
+            } 
+        } catch(e) { 
+            quit(1); 
+        }
+    " >/dev/null 2>&1; then
         echo "✅ MongoDB is ready"
         break
     fi
     if [ $i -eq $((TIMEOUT/INTERVAL)) ]; then
         echo "❌ MongoDB failed to start within ${TIMEOUT}s"
+        echo "🔍 Debug info:"
+        docker exec rocketchat-observability-mongo-1 mongosh --eval "try { rs.status(); } catch(e) { print('Replica set not initialized'); }" 2>/dev/null || echo "MongoDB not accessible"
         exit 1
     fi
     sleep $INTERVAL

@@ -283,6 +283,60 @@ Grafana: http://localhost:32768/grafana
    # Rationale: Users need confidence that deployment succeeded
    ```
 
+## 🔧 Systematic Root Cause Fixes (Latest Update)
+
+After the initial debugging session, we identified that the same issues kept recurring. This indicated that the **root problems weren't fixed in the repository itself**. We implemented systematic fixes:
+
+### **Root Issues Identified:**
+1. **MongoDB Replica Set Fragility** - Initialization failed frequently, requiring manual intervention
+2. **Traefik Health Check Wrong Endpoint** - Script checked `/ping` instead of `/dashboard/`  
+3. **Grafana Configuration Error** - `SERVE_FROM_SUB_PATH: "true"` caused redirect loops
+4. **Health Check Timeouts** - Too aggressive for slower environments
+
+### **Systematic Fixes Applied:**
+
+#### **1. MongoDB Replica Set Robustness**
+```bash
+# Enhanced mongo-init-replica in compose.database.yml
+function initReplicaSet() {
+  try {
+    const status = rs.status();
+    if (status.ok === 1 && status.myState === 1) {
+      print("✅ Replica set already healthy");
+      return;
+    }
+    if (status.ok === 1 && status.myState !== 1) {
+      print("🔧 Replica set exists but unhealthy, reconfiguring...");
+      rs.reconfig(rsConfig, {force: true});
+      return;
+    }
+  } catch (e) {
+    print("🆕 Replica set not found, initializing...");
+  }
+  rs.initiate(rsConfig);
+}
+```
+
+#### **2. Fixed Grafana Configuration**
+```yaml
+# compose.monitoring.yml - FIXED
+GF_SERVER_SERVE_FROM_SUB_PATH: "false"  # was "true" - caused redirect loops
+```
+
+#### **3. Enhanced Health Monitoring**
+- **Timeout**: Increased from 300s to 600s for slower environments
+- **Interval**: Increased from 5s to 10s to reduce noise
+- **MongoDB Check**: Now verifies both database AND replica set health
+- **Error Feedback**: Provides diagnostic info on failures
+
+#### **4. Repository Defaults**
+- ✅ `env.example` has correct defaults  
+- ✅ `TRAEFIK_API_INSECURE=true` enables dashboard
+- ✅ `GRAFANA_PATH=/grafana` with empty `GRAFANA_DOMAIN`
+
+### **Impact:**
+These fixes prevent the recurring issues that required manual intervention, making this a **true one-click deployment**.
+
 ## Future Considerations
 
 ### Potential Enhancements
