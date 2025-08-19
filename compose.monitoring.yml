@@ -58,7 +58,7 @@ services:
       - "${BIND_IP:-0.0.0.0}:${GRAFANA_HOST_PORT:-5050}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./files/grafana/dashboards:/dashboards:Z
+      - ./files/grafana/dashboards:/var/lib/grafana/dashboards:Z
       - ./files/grafana/provisioning/:/etc/grafana/provisioning:Z
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-rc-admin}

@@ -1,107 +1,229 @@
+# Rocket.Chat + MongoDB + Prometheus + Grafana + Traefik - Reference Stack
 
-# Rocket.Chat Observability Stack
+A turnkey, reproducible local/lab stack with complete observability and a clean path to production.
 
-> **ΓÜá∩╕Å WARNING: This stack is for LOCAL TESTING and LAB USE ONLY.**
->
-> - **Do NOT use in production.**
-> - No TLS, no database auth, and default passwords are used.
-> - Exposed services may be insecure if run outside localhost.
+Highlights:
+- One command to run on Docker or Podman (rootless or rootful)
+- Always-deploy demo overlay using ephemeral ports (no port conflicts)
+- File-provider Traefik (no docker.sock), single edge for all apps
+- Full observability: Rocket.Chat, MongoDB, Node Exporter, Traefik, and NATS
+- Grafana pre-provisioning and curated dashboards
 
-![Compose Lint](https://github.com/Canepro/rocketchat-observability/actions/workflows/compose-lint.yml/badge.svg?branch=main)
+## Quick start (TL;DR)
 
-
-A reference **Podman/Docker Compose stack** for local testing and observability of Rocket.Chat, with:
-
-
-## Services Overview
-
-- **Rocket.Chat**: The main chat application.
-- **MongoDB**: Database backend for Rocket.Chat.
-- **MongoDB Exporter**: Exposes MongoDB metrics for Prometheus.
-- **NATS**: Message broker for Rocket.Chat clustering.
-- **NATS Exporter**: Exposes NATS metrics for Prometheus.
-- **Traefik**: Reverse proxy and router for HTTP(S) traffic.
-- **Prometheus**: Collects and stores metrics from all exporters.
-- **Grafana**: Visualizes metrics and dashboards.
-- **Node Exporter**: Exposes host system metrics for Prometheus.
-
----
-
-## Architecture
-
-
-```text
-[Client] -> [Traefik :80/:443] -> [Rocket.Chat :3000]
-                          Γö£ΓöÇ> [Grafana :/grafana or :5050]
-                          ΓööΓöÇ> [Prometheus :9000]
-[MongoDB] <-> [MongoDB Exporter :9216]
-[NATS] -> [NATS Exporter :7777]
-[Host] -> [Node Exporter :9100]
-```
-
----
-
-
----
-
-## Quickstart
-
+1) Clone and prepare:
 ```bash
-# Clone repo and prepare environment
+git clone --depth 1 https://github.com/Canepro/rocketchat-observability.git
+cd rocketchat-observability
 cp .env.example .env
-# Edit .env if needed (domains, ports, passwords)
-
-# Start the stack (preferred: Makefile wrapper)
-make up
-# or (direct):
-podman-compose up -d
-# or:
-docker compose up -d
 ```
 
-> **Never commit your real `.env` file to version control!**
-
-
-### Access the services
-
-- **Rocket.Chat** ΓåÆ [http://localhost:3000](http://localhost:3000)
-- **Grafana** ΓåÆ [http://grafana.localhost/grafana](http://grafana.localhost/grafana)
-  - Default login: `admin` / password from `.env` (`GRAFANA_ADMIN_PASSWORD`)
-- **Prometheus** ΓåÆ [http://127.0.0.1:9000](http://127.0.0.1:9000) (bound to localhost)
-- **Traefik Dashboard** ΓåÆ [http://localhost:8080](http://localhost:8080) (if `TRAEFIK_API_INSECURE=true`)
-
-### Shutdown & reset
-
-
-
+2) Start demo (ephemeral ports, http):
 ```bash
-podman-compose down -v  # stops stack and wipes volumes
+make demo-up
+make url   # prints effective Rocket.Chat and Grafana URLs
 ```
 
+3) Open the URLs printed by `make url`.
+- Grafana login: user `admin`, password from `.env` (default `rc-admin`).
+
+To stop:
+```bash
+make down
+```
+
+## Engine-agnostic design
+
+- Works with both Docker and Podman; the Makefile auto-detects the engine.
+- No dependency on provider sockets (no docker.sock exposure).
+- Rootless-friendly: the demo overlay binds Traefik to random free localhost ports.
+
+## Files overview
+
+- compose.yml, compose.database.yml, compose.monitoring.yml, compose.traefik.yml (base stack)
+- compose.demo.yml (ephemeral ports for Traefik)
+- compose.prod.yml (fixed 80/443, prod-like)
+- compose.nats-exporter.yml (NATS exporter added)
+- files/prometheus/prometheus.yml (scrape jobs)
+- files/grafana/provisioning/... (datasource and dashboards provisioning)
+- files/grafana/download-dashboards.sh (curated dashboards fetcher)
+- files/traefik/dynamic.tmpl.yml → rendered to files/traefik/dynamic.yml
+- scripts/print-urls.sh (discover effective URLs)
+- scripts/render-traefik-config.sh (templating for Traefik dynamic config)
+- scripts/confirm.sh (safety prompt for destructive tasks)
+- Makefile (unified UX across Docker/Podman, with cleanup and upgrade flows)
+
+## Configuration (.env)
+
+Adjust `.env` to your environment:
+```dotenv
+TRAEFIK_PROTOCOL=http          # use https in production
+DOMAIN=localhost               # your domain for production
+GRAFANA_DOMAIN=                # set to subdomain for production (e.g., grafana.example.com)
+GRAFANA_PATH=/grafana          # keep a path in demo or when not using subdomain
+ROOT_URL=http://localhost      # align with your access
+LETSENCRYPT_ENABLED=           # set to true with https in production
+LETSENCRYPT_EMAIL=             # your email for ACME
+GRAFANA_ADMIN_PASSWORD=rc-admin
+```
+
+## Modes
+
+- Demo (always-deploy): ephemeral ports, http
+  ```bash
+  make demo-up
+  make url
+  ```
+- Prod-like: 80/443, https, Let's Encrypt
+  ```bash
+  # In .env:
+  # TRAEFIK_PROTOCOL=https
+  # LETSENCRYPT_ENABLED=true
+  # LETSENCRYPT_EMAIL=you@example.com
+  # DOMAIN=your.domain
+  make prod-up
+  ```
+
+## Observability
+
+Prometheus scrapes:
+- Prometheus: http://prometheus:9090
+- Node Exporter: http://node-exporter:9100
+- MongoDB Exporter: http://mongodb-exporter:9216
+- Rocket.Chat: http://rocketchat:9458
+- Traefik: http://traefik:9096
+- NATS Exporter: http://nats-exporter:7777
+
+Grafana:
+- Pre-provisioned Prometheus datasource
+- Dashboards auto-downloaded: Prometheus overview, Node Exporter Full, Traefik v2, Rocket.Chat, NATS, MongoDB exporter
+- Files: `files/grafana/provisioning/...`, dashboards under `files/grafana/dashboards/imported/...`
+
+Update dashboards:
+```bash
+make fetch-dashboards
+```
+
+## Traefik routing
+
+- Provider: file (no docker labels required).
+- Dynamic config is templated from `.env`:
+  - Host(`${DOMAIN}`) → Rocket.Chat
+  - Host(`${DOMAIN}`) && PathPrefix(`${GRAFANA_PATH}`) → Grafana (path mode)
+  - Host(`${GRAFANA_DOMAIN}`) → Grafana (subdomain mode)
+
+Render config:
+```bash
+make render-traefik
+```
+
+Note: Ensure your static Traefik configuration (compose.traefik.yml) defines entryPoints `web` and optionally `websecure`, and enables the file provider pointing to `files/traefik/dynamic.yml`.
+
+## Resetting or completely cleaning a demo
+
+Use these when you want to get back to a pristine "first run" state.
+
+- Safe cleanup (keep data volumes):
+  ```bash
+  make down
+  make clean
+  ```
+  This stops containers and removes generated files (e.g., rendered Traefik config, imported dashboards) but preserves MongoDB, Grafana, Prometheus data.
+
+- Factory reset demo (delete demo volumes):
+  ```bash
+  make demo-reset
+  ```
+  You'll be prompted to type YES. This stops the demo stack and deletes associated volumes, then removes generated files. Next `make demo-up` will start a fresh, empty workspace.
+
+- Aggressive cleanup (cover demo/prod overlays):
+  ```bash
+  make nuke
+  ```
+  Similar to `demo-reset` but runs down -v using both demo and prod overlays to ensure all project volumes are removed.
+
+Tip: After a reset, run:
+```bash
+make bootstrap
+make demo-up
+make url
+```
+
+## Backing up and restoring Rocket.Chat data (MongoDB)
+
+Always back up before upgrading.
+
+- Create a compressed backup:
+  ```bash
+  make backup-mongo
+  # => backups/mongo/mongo-YYYYmmdd-HHMMSS.archive.gz
+  ```
+
+- Restore from a backup:
+  ```bash
+  make restore-mongo FILE=backups/mongo-YYYYmmdd-HHMMSS.archive.gz
+  ```
+  This stops Rocket.Chat, restores MongoDB with --drop, then starts Rocket.Chat again.
+
+Notes:
+- If your MongoDB requires auth, adjust the Makefile or provide a proper URI; the demo setup is authless.
+- Ensure sufficient disk space for the dump/restore.
+
+## Upgrading Rocket.Chat
+
+General approach:
+1) Backup:
+   ```bash
+   make backup-mongo
+   ```
+2) Review Rocket.Chat release notes and ensure MongoDB compatibility for your target version.
+3) Update the Rocket.Chat image tag used by your compose:
+   - Preferred: set it in `.env` (e.g., ROCKETCHAT_IMAGE=rocketchat/rocket.chat:6.9.0) if your compose references it.
+   - Or edit `compose.yml` to change the `image:` tag for the `rocketchat` service.
+4) Pull and restart only Rocket.Chat:
+   ```bash
+   make upgrade-rc
+   ```
+5) Verify:
+   - Watch logs until startup completes:
+     ```bash
+     make logs
+     ```
+   - Sign in to the workspace and confirm the version in Admin.
+   - Ensure metrics (http://rocketchat:9458 inside the network) and key functions work.
+
+Rollback plan:
+- Revert the image tag (in `.env` or compose.yml) to the previous version.
+- `make upgrade-rc` to pull and restart.
+- If needed, `make restore-mongo FILE=...` to restore the pre-upgrade backup.
+
+Best practices:
+- Upgrade one major version at a time when required by Rocket.Chat's migration guide.
+- Avoid upgrading during peak use; schedule downtime or use maintenance mode.
+- Keep MongoDB within Rocket.Chat's supported version range for your target release.
+
+## Common tasks
+
+- Show merged config:
+  ```bash
+  make compose-config
+  ```
+- Tail logs:
+  ```bash
+  make logs
+  ```
+- See services:
+  ```bash
+  make ps
+  ```
+
+## Security notes (production)
+
+- Use `TRAEFIK_PROTOCOL=https` and Let's Encrypt.
+- Set secure Grafana admin password and consider SSO/integrations.
+- Restrict Traefik dashboard (if enabled) and disable in public contexts.
+- Harden MongoDB auth and network policies if deploying beyond lab/demo.
+
 ---
 
-
----
-
-## Troubleshooting
-
-- **Port already in use**: Make sure no other service is using the same port, or change the port in `.env`.
-- **Images not found**: Run `docker compose pull` or `podman compose pull` to fetch images.
-- **Permission denied on volumes**: Ensure your user has permission to write to the volume directories.
-- **Services not starting**: Check logs with `make logs` or `docker compose logs` for errors.
-
----
-
-## Security Notes
-
-- Example config is for **local lab/testing only**.
-- Traefik is configured **without TLS** (`http://` only).
-- MongoDB runs **without authentication** by default (simplifies testing).
-- Prometheus is bound to **127.0.0.1** for safety.
-- Always change default passwords in `.env`.
-
----
-
-## License
-
-MIT
+Happy chatting and observing!
