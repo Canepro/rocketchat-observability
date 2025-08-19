@@ -61,12 +61,14 @@ services:
       - ./files/grafana/dashboards:/var/lib/grafana/dashboards:Z
       - ./files/grafana/provisioning/:/etc/grafana/provisioning:Z
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-rc-admin}
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      - GF_SERVER_ROOT_URL=http://${GRAFANA_DOMAIN}${GRAFANA_PATH}/
+      # Serve Grafana from a subpath under the main domain
+      GF_SERVER_ROOT_URL: http://${DOMAIN}${GRAFANA_PATH}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      # Admin and auth settings
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-rc-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_ANONYMOUS_ORG_NAME: Main Org.
 
 volumes:
   prometheus_tsdb: {driver: local}

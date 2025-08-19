@@ -44,17 +44,24 @@ if [[ -z "$HTTP_ADDR" ]]; then
   echo "Warning: Could not detect Traefik port, assuming localhost:80" >&2
 fi
 
-BASE_URL="http://${HTTP_ADDR}"
+# Normalize 0.0.0.0 to localhost for user-friendly display
+DISPLAY_ADDR="$HTTP_ADDR"
+if [[ "$DISPLAY_ADDR" == 0.0.0.0:* ]]; then
+  DISPLAY_ADDR="localhost:${DISPLAY_ADDR#0.0.0.0:}"
+fi
+
+BASE_URL="http://${DISPLAY_ADDR}"
 
 RC_URL="${BASE_URL}"
 if [[ -n "${DOMAIN:-}" && "$DOMAIN" != "localhost" ]]; then
   RC_URL="http://${DOMAIN}"
 fi
 
-# Grafana via path by default
-GRAFANA_URL="${BASE_URL}${GRAFANA_PATH}"
+# Grafana URL: prefer domain if provided, else subpath on base URL
 if [[ -n "${GRAFANA_DOMAIN:-}" ]]; then
   GRAFANA_URL="http://${GRAFANA_DOMAIN}"
+else
+  GRAFANA_URL="${BASE_URL}${GRAFANA_PATH}"
 fi
 
 printf "Rocket.Chat: %s\n" "$RC_URL"
