@@ -1,0 +1,31 @@
+services:
+  # Traefik reverse proxy terminates HTTP/S and routes to services
+  traefik:
+    image: ${TRAEFIK_IMAGE}
+    restart: always
+    environment:
+      DOMAIN: ${DOMAIN}
+      GRAFANA_DOMAIN: ${GRAFANA_DOMAIN}
+      GRAFANA_PATH: ${GRAFANA_PATH}
+      TRAEFIK_PROTOCOL: ${TRAEFIK_PROTOCOL}
+    command:
+      - --api.insecure=${TRAEFIK_API_INSECURE}
+      - --providers.docker=false
+      - --providers.file.filename=/traefik_config/${TRAEFIK_PROTOCOL}/dynamic.yml
+      - --entrypoints.http.address=:${TRAEFIK_HTTP_PORT}
+      - --entrypoints.https.address=:${TRAEFIK_HTTPS_PORT}
+      - --entrypoints.metrics.address=:9096
+      - --metrics.prometheus=true
+      - --certificatesresolvers.le.acme.tlschallenge=${LETSENCRYPT_ENABLED}
+      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "${TRAEFIK_HTTP_PORT}:${TRAEFIK_HTTP_PORT}"
+      - "${TRAEFIK_DASHBOARD_PORT}:8080"
+      - "${TRAEFIK_HTTPS_PORT}:${TRAEFIK_HTTPS_PORT}"
+    volumes:
+      - traefik-ssl:/letsencrypt:rw
+      - ./files/traefik:/traefik_config:ro
+
+volumes:
+  traefik-ssl:

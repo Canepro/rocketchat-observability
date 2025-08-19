@@ -1,0 +1,36 @@
+http:
+  routers:
+    rocketchat:
+      rule: "Host(`{{ env \"DOMAIN\" }}`)"
+      service: rocketchat
+      entryPoints:
+        - https
+      tls:
+        certResolver: le
+
+    grafana:
+      rule: "Host(`{{ env \"GRAFANA_DOMAIN\" }}`) || PathPrefix(`{{ env \"GRAFANA_PATH\" }}`)"
+      service: grafana
+      entryPoints:
+        - https
+      tls:
+        certResolver: le
+      middlewares:
+        - grafana-stripprefix
+
+  services:
+    rocketchat:
+      loadBalancer:
+        servers:
+          - url: "http://rocketchat:{{ env \"HOST_PORT\" }}"
+
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://grafana:3000"
+
+  middlewares:
+    grafana-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "{{ env \"GRAFANA_PATH\" }}"

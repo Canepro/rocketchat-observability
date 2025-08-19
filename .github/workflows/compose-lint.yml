@@ -71,12 +71,27 @@ jobs:
       - name: Lint compose config with .env.example
         run: |
           if [ "${{ matrix.engine }}" = "docker" ]; then
-            docker compose --env-file .env.example config
+            # Test individual compose files
+            docker compose --env-file .env.example -f compose.database.yml config --quiet
+            docker compose --env-file .env.example -f compose.monitoring.yml config --quiet
+            docker compose --env-file .env.example -f compose.traefik.yml config --quiet
+            # Test combined stack (the way it's actually used)
+            docker compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config --quiet
           else
             if podman compose version >/dev/null 2>&1; then
-              podman compose --env-file .env.example config
+              # Test individual compose files
+              podman compose --env-file .env.example -f compose.database.yml config --quiet
+              podman compose --env-file .env.example -f compose.monitoring.yml config --quiet
+              podman compose --env-file .env.example -f compose.traefik.yml config --quiet
+              # Test combined stack (the way it's actually used)
+              podman compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config --quiet
             else
               python3 -m pip install --user podman-compose
-              ~/.local/bin/podman-compose --env-file .env.example config
+              # Test individual compose files
+              ~/.local/bin/podman-compose --env-file .env.example -f compose.database.yml config
+              ~/.local/bin/podman-compose --env-file .env.example -f compose.monitoring.yml config
+              ~/.local/bin/podman-compose --env-file .env.example -f compose.traefik.yml config
+              # Test combined stack (the way it's actually used)
+              ~/.local/bin/podman-compose --env-file .env.example -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config
             fi
           fi
