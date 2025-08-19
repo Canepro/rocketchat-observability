@@ -1,0 +1,7 @@
+# Demo overlay: publish Traefik to ephemeral localhost ports so the stack can always start.
+# Works with Docker or Podman, rootless or rootful, and avoids port conflicts.
+services:
+  traefik:
+    ports:
+      - "${TRAEFIK_HTTP_BIND_HOST:-127.0.0.1}::80"
+      - "${TRAEFIK_HTTPS_BIND_HOST:-127.0.0.1}::443"

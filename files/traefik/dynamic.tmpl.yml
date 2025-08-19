@@ -1,0 +1,47 @@
+# Traefik dynamic configuration (rendered via envsubst to files/traefik/dynamic.yml)
+# Variables:
+#   ${DOMAIN}            e.g. localhost or chat.example.com
+#   ${GRAFANA_DOMAIN}    e.g. grafana.example.com (optional)
+#   ${GRAFANA_PATH}      e.g. /grafana (optional if GRAFANA_DOMAIN is set)
+#   ${TRAEFIK_PROTOCOL}  http|https (controls TLS requirement)
+
+http:
+  middlewares:
+    grafana-strip:
+      stripPrefix:
+        prefixes:
+          - "${GRAFANA_PATH}"
+
+  routers:
+    rocketchat:
+      rule: "Host(`${DOMAIN}`)"
+      entryPoints:
+        - web
+      service: rocketchat-svc
+      middlewares: []
+
+    grafana-path:
+      rule: "Host(`${DOMAIN}`) && PathPrefix(`${GRAFANA_PATH}`)"
+      entryPoints:
+        - web
+      service: grafana-svc
+      middlewares:
+        - grafana-strip
+
+    grafana-subdomain:
+      rule: "Host(`${GRAFANA_DOMAIN}`)"
+      entryPoints:
+        - web
+      service: grafana-svc
+      middlewares: []
+
+  services:
+    rocketchat-svc:
+      loadBalancer:
+        servers:
+          - url: "http://rocketchat:3000"
+
+    grafana-svc:
+      loadBalancer:
+        servers:
+          - url: "http://grafana:3000"
