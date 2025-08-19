@@ -54,7 +54,7 @@ jobs:
       - name: Check all required variables in .env.example are set
         run: |
           # Variables that are intentionally optional in the example file
-          OPTIONAL_VARS='REG_TOKEN|GRAFANA_PATH'
+          OPTIONAL_VARS='REG_TOKEN|GRAFANA_PATH|LETSENCRYPT_ENABLED|LETSENCRYPT_EMAIL|GRAFANA_DOMAIN'
 
           # Find keys with empty values (ignore comments and whitespace)
           missing_vars=$(grep -v '^\s*#' .env.example | grep '=' | sed 's/[[:space:]]*=[[:space:]]*/=/' | awk -F= '{ if ($2 == "" ) print $1 }')
