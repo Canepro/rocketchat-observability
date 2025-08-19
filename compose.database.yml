@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # MongoDB database with replica set for oplog support
   mongo:
