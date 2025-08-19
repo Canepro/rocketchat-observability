@@ -9,12 +9,8 @@ services:
       - -routez
       - -subz
       - -jsz
-      - -scrape_url
-      - http://nats:8222
-      - -addr
-      - 0.0.0.0
-      - -port
-      - "7777"
+      - -scrape_url=http://nats:8222
+      - -addr=0.0.0.0:7777
     restart: unless-stopped
     expose:
       - "7777"
