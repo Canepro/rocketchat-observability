@@ -42,20 +42,31 @@ for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
     if docker ps --filter "name=rocketchat-observability-traefik-1" --filter "status=running" --format "{{.Names}}" | grep -q "rocketchat-observability-traefik-1"; then
         # Try to get the actual dashboard port
         TRAEFIK_PORT=$(docker port rocketchat-observability-traefik-1 8080 2>/dev/null | cut -d: -f2)
-        if [ -n "$TRAEFIK_PORT" ] && check_service "Traefik" "http://localhost:$TRAEFIK_PORT/ping" 200; then
-            echo "✅ Traefik is healthy (dashboard: http://localhost:$TRAEFIK_PORT)"
-            break
-        elif [ -n "$TRAEFIK_PORT" ]; then
-            # Dashboard port found but ping failed - container might still be starting
-            continue
+        if [ -n "$TRAEFIK_PORT" ]; then
+            echo "🔍 Traefik dashboard port detected: $TRAEFIK_PORT"
+            if check_service "Traefik" "http://localhost:$TRAEFIK_PORT/ping" 200; then
+                echo "✅ Traefik is healthy (dashboard: http://localhost:$TRAEFIK_PORT)"
+                break
+            elif [ $i -eq 1 ]; then
+                echo "⏳ Dashboard found but not responding yet, waiting..."
+            fi
         else
-            # No dashboard port (API disabled) - just check container is running
-            echo "✅ Traefik container is running"
-            break
+            echo "⏳ No dashboard port exposed (API might be disabled), checking container..."
+            # No dashboard port (API disabled) - just check container is running for a bit
+            if [ $i -gt 10 ]; then
+                echo "✅ Traefik container is running (dashboard disabled)"
+                break
+            fi
         fi
+    else
+        echo "⏳ Traefik container not running yet..."
     fi
     if [ $i -eq $((TIMEOUT/INTERVAL)) ]; then
         echo "❌ Traefik failed to start within ${TIMEOUT}s"
+        echo "🔍 Debug info:"
+        echo "   Container status: $(docker ps --filter 'name=rocketchat-observability-traefik-1' --format '{{.Status}}')"
+        echo "   Last logs:"
+        docker logs rocketchat-observability-traefik-1 2>&1 | tail -5
         exit 1
     fi
     sleep $INTERVAL
