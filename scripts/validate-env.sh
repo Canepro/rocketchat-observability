@@ -58,7 +58,15 @@ if command -v docker >/dev/null 2>&1; then
     if docker info >/dev/null 2>&1; then
         echo "✅ Docker runtime detected and accessible"
     else
-        echo "❌ ERROR: Docker is installed but not accessible (permissions?)"
+        echo "❌ ERROR: Docker is installed but not accessible"
+        echo "   This is usually a permissions issue. Try one of these fixes:"
+        echo "   1. Add your user to the docker group:"
+        echo "      sudo usermod -aG docker $USER"
+        echo "      newgrp docker  # or logout/login"
+        echo "   2. Use sudo:"
+        echo "      sudo make demo-up"
+        echo "   3. Check if Docker daemon is running:"
+        echo "      sudo systemctl status docker"
         exit 1
     fi
 elif command -v podman >/dev/null 2>&1; then
