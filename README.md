@@ -1,7 +1,7 @@
 
 # Rocket.Chat Observability Stack
 
-> **⚠️ WARNING: This stack is for LOCAL TESTING and LAB USE ONLY.**
+> **ΓÜá∩╕Å WARNING: This stack is for LOCAL TESTING and LAB USE ONLY.**
 >
 > - **Do NOT use in production.**
 > - No TLS, no database auth, and default passwords are used.
@@ -32,8 +32,8 @@ A reference **Podman/Docker Compose stack** for local testing and observability 
 
 ```text
 [Client] -> [Traefik :80/:443] -> [Rocket.Chat :3000]
-                          ├─> [Grafana :/grafana or :5050]
-                          └─> [Prometheus :9000]
+                          Γö£ΓöÇ> [Grafana :/grafana or :5050]
+                          ΓööΓöÇ> [Prometheus :9000]
 [MongoDB] <-> [MongoDB Exporter :9216]
 [NATS] -> [NATS Exporter :7777]
 [Host] -> [Node Exporter :9100]
@@ -64,11 +64,11 @@ docker compose up -d
 
 ### Access the services
 
-- **Rocket.Chat** → [http://localhost:3000](http://localhost:3000)
-- **Grafana** → [http://grafana.localhost/grafana](http://grafana.localhost/grafana)
+- **Rocket.Chat** ΓåÆ [http://localhost:3000](http://localhost:3000)
+- **Grafana** ΓåÆ [http://grafana.localhost/grafana](http://grafana.localhost/grafana)
   - Default login: `admin` / password from `.env` (`GRAFANA_ADMIN_PASSWORD`)
-- **Prometheus** → [http://127.0.0.1:9000](http://127.0.0.1:9000) (bound to localhost)
-- **Traefik Dashboard** → [http://localhost:8080](http://localhost:8080) (if `TRAEFIK_API_INSECURE=true`)
+- **Prometheus** ΓåÆ [http://127.0.0.1:9000](http://127.0.0.1:9000) (bound to localhost)
+- **Traefik Dashboard** ΓåÆ [http://localhost:8080](http://localhost:8080) (if `TRAEFIK_API_INSECURE=true`)
 
 ### Shutdown & reset
 
