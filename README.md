@@ -1,8 +1,34 @@
 # Rocket.Chat + MongoDB + Prometheus + Grafana + Traefik - Reference Stack
 
+[![Compose Lint](https://github.com/Canepro/rocketchat-observability/actions/workflows/compose-lint.yml/badge.svg)](https://github.com/Canepro/rocketchat-observability/actions/workflows/compose-lint.yml)
+
 A turnkey, reproducible local/lab stack with complete observability and a clean path to production.
 
-Highlights:
+## 📋 Documentation
+
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrade from older versions and understand the new overlay architecture
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions with overlay-specific scenarios
+
+## 📖 Table of Contents
+
+- [✨ Highlights](#-highlights)
+- [🚀 Quick start (TL;DR)](#-quick-start-tldr)
+- [🏗️ Engine-agnostic design](#️-engine-agnostic-design)
+- [📁 Files overview](#-files-overview)
+- [⚙️ Configuration (.env)](#️-configuration-env)
+- [🎯 Modes](#-modes)
+- [📊 Observability](#-observability)
+- [🌐 Traefik routing](#-traefik-routing)
+- [🔄 Resetting or completely cleaning a demo](#-resetting-or-completely-cleaning-a-demo)
+- [💾 Backing up and restoring Rocket.Chat data (MongoDB)](#-backing-up-and-restoring-rocketchat-data-mongodb)
+- [⬆️ Upgrading Rocket.Chat](#️-upgrading-rocketchat)
+- [🛠️ Common tasks](#️-common-tasks)
+- [🔒 Security notes (production)](#-security-notes-production)
+- [📖 Additional Documentation](#-additional-documentation)
+- [🤝 Contributing](#-contributing)
+
+## ✨ Highlights
+
 - One command to run on Docker or Podman (rootless or rootful)
 - Always-deploy demo overlay using ephemeral ports (no port conflicts)
 - File-provider Traefik (no docker.sock), single edge for all apps
@@ -224,6 +250,18 @@ Best practices:
 - Restrict Traefik dashboard (if enabled) and disable in public contexts.
 - Harden MongoDB auth and network policies if deploying beyond lab/demo.
 
+## 📖 Additional Documentation
+
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Comprehensive guide for upgrading and understanding the overlay architecture
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Solutions for common issues, engine-specific problems, and overlay troubleshooting
+- **[Makefile Reference](Makefile)** - Complete list of available commands with `make help`
+
+## 🤝 Contributing
+
+- Issues and feature requests: [GitHub Issues](https://github.com/Canepro/rocketchat-observability/issues)
+- Pull requests welcome for improvements and bug fixes
+- Ensure `make compose-config` passes before submitting PRs
+
 ---
 
-Happy chatting and observing!
+Happy chatting and observing! 🚀
