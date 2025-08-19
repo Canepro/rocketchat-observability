@@ -40,9 +40,15 @@ RC_SERVICE    ?= rocketchat
 BACKUP_DIR    ?= backups/mongo
 TIMESTAMP     := $(shell date -u +%Y%m%d-%H%M%S)
 
+.PHONY: validate-env
+validate-env:
+	@chmod +x scripts/validate-env.sh
+	@scripts/validate-env.sh
+
 .PHONY: help
 help:
 	@echo "Targets:"
+	@echo "  make validate-env     - Validate .env configuration before deployment"
 	@echo "  make bootstrap        - Render Traefik config and fetch Grafana dashboards"
 	@echo "  make up               - Start stack with base files"
 	@echo "  make demo-up          - Start demo (ephemeral ports) + NATS exporter"
@@ -82,12 +88,22 @@ up: render-traefik
 	$(COMPOSE) $(BASE_FILES) up -d
 
 .PHONY: demo-up
-demo-up: render-traefik fetch-dashboards
+demo-up: validate-env render-traefik fetch-dashboards
 	$(COMPOSE) $(BASE_FILES) $(DEMO_OVERLAYS) up -d
+	@echo "⏳ Waiting for services to start..."
+	@chmod +x scripts/wait-for-services.sh
+	@scripts/wait-for-services.sh
+	@echo ""
+	@$(MAKE) url
 
 .PHONY: prod-up
-prod-up: render-traefik fetch-dashboards
+prod-up: validate-env render-traefik fetch-dashboards
 	$(COMPOSE) $(BASE_FILES) $(PROD_OVERLAYS) up -d
+	@echo "⏳ Waiting for services to start..."
+	@chmod +x scripts/wait-for-services.sh
+	@scripts/wait-for-services.sh
+	@echo ""
+	@$(MAKE) url
 
 .PHONY: down
 down:

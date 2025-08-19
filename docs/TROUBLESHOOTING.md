@@ -4,7 +4,70 @@ This guide helps you resolve common issues when using the Rocket.Chat Observabil
 
 ## Common Issues
 
-### 1. Invalid Reference Format Error
+### 1. Grafana Subpath Configuration Issues
+
+**Symptoms**: 
+- Grafana redirects to Rocket.Chat instead of staying at `/grafana`
+- "This page isn't working" with too many redirects
+- Grafana shows "failed to load application files" error
+
+**Root Cause**: Incorrect `GF_SERVER_ROOT_URL` and `GF_SERVER_SERVE_FROM_SUB_PATH` configuration.
+
+**Solution**:
+```bash
+# In compose.monitoring.yml, ensure:
+GF_SERVER_ROOT_URL: http://${DOMAIN}${GRAFANA_PATH}      # Include subpath, no trailing slash
+GF_SERVER_SERVE_FROM_SUB_PATH: "false"                  # Let Traefik handle path stripping
+
+# In .env, ensure:
+GRAFANA_DOMAIN=                                          # Empty for path mode
+GRAFANA_PATH=/grafana                                    # Path-based access
+
+# Restart Grafana:
+docker compose -f compose.monitoring.yml up -d grafana --force-recreate
+```
+
+### 2. Environment Configuration Conflicts
+
+**Symptoms**: Services not accessible, wrong URLs generated
+
+**Root Cause**: Mixed subdomain and path configuration in `.env`
+
+**Solution**:
+```bash
+# Run validation before deployment:
+make validate-env
+
+# Fix common issues:
+DOMAIN=your-ip-or-domain          # Your actual domain/IP
+GRAFANA_DOMAIN=                   # Empty for path mode
+GRAFANA_PATH=/grafana             # Simple subpath
+ROOT_URL=http://your-ip-or-domain # Must match DOMAIN
+```
+
+### 3. Container Restart Loops
+
+**Symptoms**: Containers constantly restarting (NATS exporter, Grafana)
+
+**Root Cause**: Wrong command syntax or configuration conflicts
+
+**Solution**:
+```bash
+# Check container logs:
+docker logs container-name
+
+# For NATS exporter issues:
+# Ensure compose.nats-exporter.yml uses minimal flags:
+command:
+  - -varz
+  - -connz  
+  - http://nats:8222
+
+# For Grafana datasource conflicts:
+# Remove duplicate datasource files in files/grafana/provisioning/datasources/
+```
+
+### 4. Invalid Reference Format Error
 
 **Error**: `ERROR: normalizing image: normalizing name for compat API: invalid reference format`
 

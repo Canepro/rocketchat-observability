@@ -16,15 +16,20 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
   - [📖 Table of Contents](#-table-of-contents)
   - [✨ Highlights](#-highlights)
   - [Quick start (TL;DR)](#quick-start-tldr)
+    - [🚀 **TRUE ONE-CLICK DEPLOY**](#-true-one-click-deploy)
   - [Engine-agnostic design](#engine-agnostic-design)
   - [Files overview](#files-overview)
   - [Configuration (.env)](#configuration-env)
+    - [Key configuration options:](#key-configuration-options)
   - [Modes](#modes)
   - [Observability](#observability)
   - [Traefik routing](#traefik-routing)
   - [Resetting or completely cleaning a demo](#resetting-or-completely-cleaning-a-demo)
   - [Backing up and restoring Rocket.Chat data (MongoDB)](#backing-up-and-restoring-rocketchat-data-mongodb)
   - [Upgrading Rocket.Chat](#upgrading-rocketchat)
+  - [🛠️ Built-in Validation \& Health Monitoring](#️-built-in-validation--health-monitoring)
+    - [Pre-deployment validation](#pre-deployment-validation)
+    - [Health monitoring during startup](#health-monitoring-during-startup)
   - [Common tasks](#common-tasks)
   - [Security notes (production)](#security-notes-production)
   - [📖 Additional Documentation](#-additional-documentation)
@@ -32,31 +37,55 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
 
 ## ✨ Highlights
 
-- One command to run on Docker or Podman (rootless or rootful)
-- Always-deploy demo overlay using ephemeral ports (no port conflicts)
-- File-provider Traefik (no docker.sock), single edge for all apps
-- Full observability: Rocket.Chat, MongoDB, Node Exporter, Traefik, and NATS
-- Grafana pre-provisioning and curated dashboards
+- **True One-Click Deploy**: Automated validation, health checks, and URL discovery
+- **Engine-agnostic**: Works on Docker or Podman (rootless or rootful)
+- **Zero port conflicts**: Demo overlay uses ephemeral ports automatically
+- **Production-ready**: File-provider Traefik (no docker.sock), single edge for all apps
+- **Complete observability**: Rocket.Chat, MongoDB, Node Exporter, Traefik, and NATS metrics
+- **Pre-configured dashboards**: Grafana with curated dashboards and datasources
+- **Smart defaults**: Path-based Grafana access, validated configuration
 
 ## Quick start (TL;DR)
 
-1) Clone and prepare:
+### 🚀 **TRUE ONE-CLICK DEPLOY**
+
+1) **Install Docker (if needed):**
+```bash
+curl -L https://get.docker.com | sh
+```
+
+2) **Deploy the stack:**
 ```bash
 git clone --depth 1 https://github.com/Canepro/rocketchat-observability.git
 cd rocketchat-observability
-cp .env.example .env
+cp env.example .env          # Edit DOMAIN=your-ip if needed
+make demo-up                 # Everything validates, deploys, and shows URLs!
 ```
 
-2) Start demo (ephemeral ports, http):
-```bash
-make demo-up
-make url   # prints effective Rocket.Chat and Grafana URLs
+**Example output:**
+```
+🔍 Validating environment configuration...
+✅ Environment validation passed!
+🔄 Rendering Traefik config...
+📥 Fetching Grafana dashboards...
+🚀 Starting services...
+⏳ Waiting for services to start...
+✅ MongoDB is ready
+✅ Traefik is healthy  
+✅ Rocket.Chat is ready
+✅ Grafana is healthy
+🎉 All services are healthy!
+
+🌐 Your Rocket.Chat Observability Stack:
+Rocket.Chat: http://localhost:32768
+Grafana: http://localhost:32768/grafana
 ```
 
-3) Open the URLs printed by `make url`.
-- Grafana login: user `admin`, password from `.env` (default `rc-admin`).
+3) **Access your services:**
+- **Rocket.Chat**: Open the Rocket.Chat URL (create admin account on first visit)
+- **Grafana**: Login with user `admin`, password `rc-admin` (or your custom password from `.env`)
 
-To stop:
+**To stop:**
 ```bash
 make down
 ```
@@ -84,13 +113,27 @@ make down
 
 ## Configuration (.env)
 
-Adjust `.env` to your environment:
+**Automatic validation ensures your configuration works before deployment.**
+
+Run validation anytime:
+```bash
+make validate-env
+```
+
+### Key configuration options:
+
 ```dotenv
+# Basic settings (required)
+DOMAIN=localhost               # your domain/IP for production
+ROOT_URL=http://localhost      # must match DOMAIN protocol
+
+# Grafana access (choose one)
+GRAFANA_PATH=/grafana          # ✅ RECOMMENDED: Simple path-based access
+GRAFANA_DOMAIN=                # Leave empty for path mode
+# GRAFANA_DOMAIN=grafana.example.com  # Alternative: subdomain mode (advanced)
+
+# Production settings
 TRAEFIK_PROTOCOL=http          # use https in production
-DOMAIN=localhost               # your domain for production
-GRAFANA_DOMAIN=                # set to subdomain for production (e.g., grafana.example.com)
-GRAFANA_PATH=/grafana          # keep a path in demo or when not using subdomain
-ROOT_URL=http://localhost      # align with your access
 LETSENCRYPT_ENABLED=           # set to true with https in production
 LETSENCRYPT_EMAIL=             # your email for ACME
 GRAFANA_ADMIN_PASSWORD=rc-admin
@@ -231,8 +274,38 @@ Best practices:
 - Avoid upgrading during peak use; schedule downtime or use maintenance mode.
 - Keep MongoDB within Rocket.Chat's supported version range for your target release.
 
+## 🛠️ Built-in Validation & Health Monitoring
+
+### Pre-deployment validation
+```bash
+make validate-env               # Validate configuration before deployment
+```
+
+**Automatically checks:**
+- ✅ Required environment variables are set
+- ✅ No conflicting Grafana configuration (subdomain vs path)
+- ✅ Valid URL formats
+- ✅ Docker/Podman runtime availability
+- ✅ Common misconfigurations (double paths, etc.)
+
+### Health monitoring during startup
+When you run `make demo-up` or `make prod-up`, the system automatically:
+
+1. **Validates configuration** before starting
+2. **Renders dynamic configs** (Traefik routing)
+3. **Fetches dashboards** (Grafana provisioning)
+4. **Starts services** with proper dependencies
+5. **Waits for health checks** on all services
+6. **Displays access URLs** when ready
+
+No more guessing if services are ready! 🎉
+
 ## Common tasks
 
+- Validate configuration:
+  ```bash
+  make validate-env
+  ```
 - Show merged config:
   ```bash
   make compose-config
