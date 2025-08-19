@@ -7,7 +7,13 @@ SHELL := /usr/bin/bash
 # Detect engine and compose command
 COMPOSE := $(shell \
 	if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
-		echo "docker compose"; \
+		if docker compose version >/dev/null 2>&1; then \
+			echo "docker compose"; \
+		elif command -v docker-compose >/dev/null 2>&1; then \
+			echo "docker-compose"; \
+		else \
+			echo "docker compose"; \
+		fi; \
 	elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then \
 		echo "podman compose"; \
 	else \
