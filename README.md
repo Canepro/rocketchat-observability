@@ -8,6 +8,7 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
 
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrade from older versions and understand the new overlay architecture
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions with overlay-specific scenarios
+- **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Journey from debugging hell to one-click deployment, architecture decisions and improvements
 
 ## 📖 Table of Contents
 
@@ -34,6 +35,7 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
   - [Security notes (production)](#security-notes-production)
   - [📖 Additional Documentation](#-additional-documentation)
   - [🤝 Contributing](#-contributing)
+  - [📚 See Also](#-see-also)
 
 ## ✨ Highlights
 
@@ -337,6 +339,10 @@ No more guessing if services are ready! 🎉
 - Issues and feature requests: [GitHub Issues](https://github.com/Canepro/rocketchat-observability/issues)
 - Pull requests welcome for improvements and bug fixes
 - Ensure `make compose-config` passes before submitting PRs
+
+## 📚 See Also
+
+- **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Comprehensive analysis of the transformation from deployment issues to one-click deployment, including root cause analysis, solutions implemented, and architecture decisions
 
 ---
 
