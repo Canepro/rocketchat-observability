@@ -433,10 +433,21 @@ When you run `make demo-up` or `make prod-up`, the system provides a **beautiful
 
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** ⭐ - **Start here for 404 errors!** Domain configuration and common deployment issues
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Comprehensive guide for upgrading and understanding the overlay architecture  
-- **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Complete journey from debugging hell to enterprise-quality deployment
+- **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Complete journey from debugging hell to enterprise-quality deployment, plus future nginx support plans
 - **[Makefile Reference](Makefile)** - Complete list of available commands with `make help`
 
 💡 **Quick Help**: Most deployment issues are domain-related. See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for instant solutions!
+
+## 🚀 Future Enhancements
+
+### nginx Support for Production (Planned)
+**Coming in next major release** - Alternative to Traefik for organizations preferring nginx:
+- ✅ **Same one-click deployment experience**
+- ✅ **Enterprise-familiar nginx configuration**  
+- ✅ **Advanced caching and performance tuning**
+- ✅ **Easy migration from Traefik setup**
+
+See detailed implementation plan in [docs/LESSONS_LEARNED.md](docs/LESSONS_LEARNED.md#nginx-support-for-production-deployments)
 
 ## 🤝 Contributing
 

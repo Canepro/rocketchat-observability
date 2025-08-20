@@ -418,6 +418,167 @@ A **beautiful, enterprise-quality deployment experience** that guides users thro
    - Make advanced options clearly documented but not default
    - Test defaults in multiple environments
 
+## Future Enhancements
+
+### nginx Support for Production Deployments
+
+**Status**: Planning phase  
+**Priority**: High  
+**Target**: Provide nginx as an alternative to Traefik for production environments
+
+#### Why nginx Support?
+
+Many organizations prefer nginx for production deployments due to:
+
+1. **Enterprise Familiarity**
+   - Most sysadmins have extensive nginx experience
+   - Well-established in enterprise environments
+   - Proven at scale with excellent performance characteristics
+
+2. **Configuration Flexibility**
+   - More granular control over caching, rate limiting, and security headers
+   - Extensive module ecosystem
+   - Fine-tuned performance optimizations
+
+3. **Operational Preferences**
+   - Some organizations have nginx-centric infrastructure
+   - Integration with existing monitoring and management tools
+   - Standardized nginx configuration management processes
+
+#### Technical Implementation Plan
+
+**Proposed Architecture:**
+```yaml
+# compose.nginx.yml - Alternative to compose.traefik.yml
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./files/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./files/nginx/sites/:/etc/nginx/conf.d/:ro
+      - ./files/nginx/ssl/:/etc/nginx/ssl/:ro
+    depends_on:
+      - rocketchat
+      - grafana
+```
+
+**Configuration Strategy:**
+- **Template-based nginx.conf** - Similar to current Traefik templating
+- **Environment-driven configuration** - Use same `.env` variables
+- **SSL/TLS support** - Let's Encrypt integration via certbot sidecar
+- **Unified Makefile targets** - `make nginx-up`, `make nginx-down`
+
+#### Implementation Phases
+
+**Phase 1: Core nginx Integration**
+- [ ] Create `compose.nginx.yml` with basic nginx service
+- [ ] Develop nginx configuration templates
+- [ ] Implement environment variable substitution
+- [ ] Create nginx-specific health checks
+
+**Phase 2: SSL/TLS Support**
+- [ ] Integrate certbot for Let's Encrypt certificates
+- [ ] Automatic certificate renewal
+- [ ] SSL configuration validation
+- [ ] HTTPS redirect handling
+
+**Phase 3: Advanced Features**
+- [ ] Rate limiting configuration
+- [ ] Security headers optimization
+- [ ] Caching strategies for static assets
+- [ ] Request/response logging standardization
+
+**Phase 4: Operational Excellence**
+- [ ] nginx-specific monitoring integration
+- [ ] Log aggregation for nginx access/error logs
+- [ ] Performance tuning documentation
+- [ ] Migration guide from Traefik to nginx
+
+#### Configuration Example
+
+**Proposed nginx site configuration:**
+```nginx
+# files/nginx/sites/rocketchat.conf
+upstream rocketchat {
+    server rocketchat:3000;
+    keepalive 32;
+}
+
+upstream grafana {
+    server grafana:3000;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    
+    # Rocket.Chat WebSocket support
+    location / {
+        proxy_pass http://rocketchat;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Grafana subpath
+    location ${GRAFANA_PATH}/ {
+        proxy_pass http://grafana/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### Benefits of nginx Support
+
+1. **Deployment Flexibility**
+   - Organizations can choose their preferred reverse proxy
+   - Easier integration with existing nginx infrastructure
+   - Familiar operational procedures
+
+2. **Performance Optimizations**
+   - Fine-tuned caching for Rocket.Chat static assets
+   - Optimized WebSocket handling
+   - Custom rate limiting and security policies
+
+3. **Enterprise Features**
+   - Advanced logging and monitoring integration
+   - Custom security headers and policies
+   - Integration with enterprise SSL certificate management
+
+#### Compatibility Considerations
+
+**Maintaining Feature Parity:**
+- All current Traefik features must be available in nginx mode
+- Same environment variable configuration
+- Identical health check behavior
+- Consistent URL routing patterns
+
+**Documentation Updates:**
+- Update README with nginx deployment options
+- Create nginx-specific troubleshooting guide
+- Provide Traefik → nginx migration documentation
+
+#### Timeline
+
+**Estimated Development**: 2-3 weeks  
+**Testing Phase**: 1 week  
+**Documentation**: 1 week  
+
+**Target Release**: Next major version (would provide both Traefik and nginx options)
+
+---
+
 ## Conclusion
 
 This transformation demonstrates that taking time to address root causes rather than applying quick fixes results in:
