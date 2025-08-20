@@ -40,12 +40,15 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
 ## ✨ Highlights
 
 - **True One-Click Deploy**: Automated validation, health checks, and URL discovery
+- **Bulletproof Reliability**: Systematic fixes for MongoDB replica sets, Traefik health checks, and Grafana configuration
+- **Beautiful Visual Experience**: Enhanced UX with progress indicators, color-coded output, and professional deployment feedback
 - **Engine-agnostic**: Works on Docker or Podman (rootless or rootful)
 - **Zero port conflicts**: Demo overlay uses ephemeral ports automatically
 - **Production-ready**: File-provider Traefik (no docker.sock), single edge for all apps
 - **Complete observability**: Rocket.Chat, MongoDB, Node Exporter, Traefik, and NATS metrics
 - **Pre-configured dashboards**: Grafana with curated dashboards and datasources
 - **Smart defaults**: Path-based Grafana access, validated configuration
+- **Comprehensive Documentation**: Detailed troubleshooting guide with focus on common domain configuration issues
 
 ## Quick start (TL;DR)
 
@@ -67,20 +70,40 @@ make demo-up                 # Everything validates, deploys, and shows URLs!
 **Example output:**
 ```
 🔍 Validating environment configuration...
+✅ Docker runtime detected and accessible
 ✅ Environment validation passed!
-🔄 Rendering Traefik config...
+
+🚀 Configuration summary:
+   Domain: localhost
+   Rocket.Chat: http://localhost:3000
+   Grafana: http://localhost/grafana (subpath mode)
+
 📥 Fetching Grafana dashboards...
 🚀 Starting services...
 ⏳ Waiting for services to start...
-✅ MongoDB is ready
-✅ Traefik is healthy  
-✅ Rocket.Chat is ready
-✅ Grafana is healthy
+🔄 Waiting for services to become healthy (timeout: 600s)
+╭─────────────────────────────────────────────────────╮
+│  Please wait while we verify all services...        │
+╰─────────────────────────────────────────────────────╯
+
+⏳ [1/4] Checking MongoDB and replica set...
+    ✅ MongoDB is ready
+⏳ [2/4] Checking Traefik reverse proxy...
+    🔍 Traefik dashboard port detected: 8080
+    ✅ Traefik is healthy (dashboard: http://localhost:8080/dashboard/)
+⏳ [3/4] Checking Rocket.Chat application...
+    ✅ Rocket.Chat is healthy
+⏳ [4/4] Checking Grafana monitoring dashboard...
+    ✅ Grafana is healthy
+
 🎉 All services are healthy!
+╭─────────────────────────────────────────────────────╮
+│  Deployment completed successfully! 🚀              │
+╰─────────────────────────────────────────────────────╯
 
 🌐 Your Rocket.Chat Observability Stack:
-Rocket.Chat: http://localhost:32768
-Grafana: http://localhost:32768/grafana
+Rocket.Chat: http://localhost
+Grafana:     http://localhost/grafana
 ```
 
 3) **Access your services:**
@@ -170,6 +193,12 @@ make down
 ## Configuration (.env)
 
 **Automatic validation ensures your configuration works before deployment.**
+
+Our systematic reliability improvements include:
+- ✅ **MongoDB replica set auto-repair** - No more manual `rs.initiate()` needed
+- ✅ **Traefik health checks** - Uses correct endpoints, no more timeouts
+- ✅ **Grafana configuration** - Fixed redirect loops with proper subpath settings
+- ✅ **Enhanced error messages** - Helpful tips for domain configuration issues
 
 Run validation anytime:
 ```bash
@@ -345,16 +374,34 @@ make validate-env               # Validate configuration before deployment
 - ✅ Common misconfigurations (double paths, etc.)
 
 ### Health monitoring during startup
-When you run `make demo-up` or `make prod-up`, the system automatically:
+When you run `make demo-up` or `make prod-up`, the system provides a **beautiful, professional deployment experience**:
 
-1. **Validates configuration** before starting
-2. **Renders dynamic configs** (Traefik routing)
-3. **Fetches dashboards** (Grafana provisioning)
+1. **Validates configuration** before starting (Docker access, environment variables)
+2. **Renders dynamic configs** (Traefik routing based on your domain)
+3. **Fetches dashboards** (Grafana provisioning with curated dashboards)
 4. **Starts services** with proper dependencies
-5. **Waits for health checks** on all services
-6. **Displays access URLs** when ready
+5. **Monitors health with visual progress**:
+   ```
+   🔄 Waiting for services to become healthy (timeout: 600s)
+   ╭─────────────────────────────────────────────────────╮
+   │  Please wait while we verify all services...        │
+   ╰─────────────────────────────────────────────────────╯
+   
+   ⏳ [1/4] Checking MongoDB and replica set...
+       ✅ MongoDB is ready
+   ⏳ [2/4] Checking Traefik reverse proxy...
+       ✅ Traefik is healthy (dashboard: http://localhost:8080/dashboard/)
+   ⏳ [3/4] Checking Rocket.Chat application...
+       ✅ Rocket.Chat is healthy  
+   ⏳ [4/4] Checking Grafana monitoring dashboard...
+       ✅ Grafana is healthy
+   
+   🎉 All services are healthy!
+   ```
+6. **Displays access URLs** when ready with proper domain routing
+7. **Provides helpful tips** if issues occur (especially domain configuration)
 
-No more guessing if services are ready! 🎉
+**Enterprise-quality deployment experience** - no more guessing if services are ready! 🚀
 
 ## Common tasks
 
@@ -384,9 +431,12 @@ No more guessing if services are ready! 🎉
 
 ## 📖 Additional Documentation
 
-- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Comprehensive guide for upgrading and understanding the overlay architecture
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Solutions for common issues, engine-specific problems, and overlay troubleshooting
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** ⭐ - **Start here for 404 errors!** Domain configuration and common deployment issues
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Comprehensive guide for upgrading and understanding the overlay architecture  
+- **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Complete journey from debugging hell to enterprise-quality deployment
 - **[Makefile Reference](Makefile)** - Complete list of available commands with `make help`
+
+💡 **Quick Help**: Most deployment issues are domain-related. See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for instant solutions!
 
 ## 🤝 Contributing
 
