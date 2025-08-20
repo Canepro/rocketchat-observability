@@ -31,15 +31,31 @@ services:
     entrypoint: ["bash", "-lc"]
     command:
       - >-
-        sleep 5;
-        echo "Initializing MongoDB replica set (if needed)...";
+        sleep 10;
+        echo "Initializing MongoDB replica set (robust)...";
         mongosh --host mongo --port ${MONGODB_PORT_NUMBER} --eval '
-          try {
-            const s = rs.status();
-            if (s.ok === 1) { print("Replica set already initialized"); quit(0); }
-          } catch (e) { /* not initialized */ }
-          rs.initiate({ _id: "'${MONGODB_REPLICA_SET_NAME}'", members: [ { _id: 0, host: "mongo:'${MONGODB_PORT_NUMBER}'" } ] });
-        ' || true;
+          function initReplicaSet() {
+            const rsConfig = { _id: "'${MONGODB_REPLICA_SET_NAME}'", members: [ { _id: 0, host: "mongo:'${MONGODB_PORT_NUMBER}'" } ] };
+            try {
+              const status = rs.status();
+              if (status.ok === 1 && status.myState === 1) {
+                print("✅ Replica set already healthy");
+                return;
+              }
+              if (status.ok === 1 && status.myState !== 1) {
+                print("🔧 Replica set exists but unhealthy, reconfiguring...");
+                rs.reconfig(rsConfig, {force: true});
+                print("✅ Replica set reconfigured");
+                return;
+              }
+            } catch (e) {
+              print("🆕 Replica set not found, initializing...");
+            }
+            rs.initiate(rsConfig);
+            print("✅ Replica set initialized");
+          }
+          initReplicaSet();
+        ' || echo "⚠️  MongoDB init completed with warnings";
 
   
 

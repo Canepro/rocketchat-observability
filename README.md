@@ -60,7 +60,7 @@ curl -L https://get.docker.com | sh
 ```bash
 git clone --depth 1 https://github.com/Canepro/rocketchat-observability.git
 cd rocketchat-observability
-cp env.example .env          # Edit DOMAIN=your-ip if needed
+cp env.example .env          # ⚠️ IMPORTANT: Edit DOMAIN if accessing remotely!
 make demo-up                 # Everything validates, deploys, and shows URLs!
 ```
 
@@ -86,6 +86,60 @@ Grafana: http://localhost:32768/grafana
 3) **Access your services:**
 - **Rocket.Chat**: Open the Rocket.Chat URL (create admin account on first visit)
 - **Grafana**: Login with user `admin`, password `rc-admin` (or your custom password from `.env`)
+
+## 🌐 **Domain Configuration (Important!)**
+
+**For local testing**: Default `DOMAIN=localhost` works perfectly.
+
+**For remote access** (VPS, cloud, team access): **MUST** update domain settings:
+
+```bash
+# Edit .env file
+nano .env
+
+# Change this line:
+DOMAIN=localhost
+
+# To your server's public IP or domain:
+DOMAIN=192.168.1.100     # Local network IP
+DOMAIN=203.0.113.10      # Public server IP  
+DOMAIN=myserver.com      # Your domain name
+```
+
+💡 **Why this matters**: Traefik routes requests based on the `DOMAIN` setting. Wrong domain = 404 errors!
+
+**Quick domain fix for existing deployment:**
+```bash
+# Update domain and restart
+sed -i 's/DOMAIN=localhost/DOMAIN=YOUR_IP_HERE/' .env
+make down && make demo-up
+```
+
+## 🆘 **Getting 404 Errors?**
+
+**Most common issue**: Wrong `DOMAIN` setting in `.env` file.
+
+The deployment health checks pass but you get 404 when accessing services? This means:
+- ✅ All services are running correctly
+- ❌ Traefik has no route for your access method
+
+**Quick diagnosis**:
+```bash
+# Check what domain Traefik is configured for:
+grep DOMAIN .env
+
+# Test localhost (should work):
+curl -I http://localhost
+
+# Test your IP (might fail if DOMAIN=localhost):
+curl -I http://YOUR_SERVER_IP
+```
+
+💡 **Solution**: Update `DOMAIN` to match how you access the server, then restart.
+
+📖 **More help**: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
+
+---
 
 **To stop:**
 ```bash

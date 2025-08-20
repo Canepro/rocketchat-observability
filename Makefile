@@ -21,7 +21,7 @@ COMPOSE := $(shell \
 	fi)
 
 ifeq ($(COMPOSE),)
-$(error Neither docker nor podman is available)
+$(error Docker/Podman not accessible. This is often a permissions issue. Run 'make validate-env' for detailed guidance, or try: sudo usermod -aG docker $$USER && newgrp docker)
 endif
 
 # Base compose files (follow Rocket.Chat compose split)
@@ -45,9 +45,16 @@ validate-env:
 	@chmod +x scripts/validate-env.sh
 	@scripts/validate-env.sh
 
+.PHONY: check-docker
+check-docker:
+	@echo "🔍 Checking Docker/Podman access..."
+	@chmod +x scripts/validate-env.sh
+	@scripts/validate-env.sh || echo "❓ Try the fixes above, then run 'make demo-up'"
+
 .PHONY: help
 help:
 	@echo "Targets:"
+	@echo "  make check-docker     - Check Docker/Podman access and permissions"
 	@echo "  make validate-env     - Validate .env configuration before deployment"
 	@echo "  make bootstrap        - Render Traefik config and fetch Grafana dashboards"
 	@echo "  make up               - Start stack with base files"

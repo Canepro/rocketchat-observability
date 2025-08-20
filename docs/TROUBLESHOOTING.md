@@ -2,7 +2,46 @@
 
 This guide helps you resolve common issues when using the Rocket.Chat Observability Stack with the new overlay architecture.
 
-## Common Issues
+## 🚨 **Most Common Issue: Domain Configuration**
+
+### ❌ **Getting 404 Errors on All Services?**
+
+**Symptoms**: 
+- `curl http://YOUR_IP` returns `404 Not Found`
+- `curl http://YOUR_IP/grafana` returns `404 Not Found`  
+- Health checks pass but services unreachable via public IP/domain
+
+**Root Cause**: `DOMAIN` in `.env` doesn't match how you're accessing the services.
+
+**Quick Fix**:
+```bash
+# 1. Check current domain setting
+grep DOMAIN .env
+
+# 2. Update to your actual access method
+sed -i 's/DOMAIN=localhost/DOMAIN=YOUR_ACTUAL_IP_OR_DOMAIN/' .env
+
+# Examples:
+# DOMAIN=192.168.1.100     # Local network access
+# DOMAIN=203.0.113.10      # Public server IP
+# DOMAIN=myserver.com      # Domain name
+
+# 3. Restart to apply new routing
+make down && make demo-up
+```
+
+**💡 Why this happens**: Traefik creates routes based on the `DOMAIN` setting. If `DOMAIN=localhost` but you access via IP, Traefik has no route for that request.
+
+**✅ Verification**:
+```bash
+# These should work after fixing DOMAIN:
+curl -I http://YOUR_DOMAIN          # Should return 200 OK
+curl -I http://YOUR_DOMAIN/grafana  # Should return 302 Found (redirect to login)
+```
+
+---
+
+## Other Common Issues
 
 ### 1. Grafana Subpath Configuration Issues
 

@@ -63,7 +63,7 @@ services:
     environment:
       # Serve Grafana from a subpath under the main domain
       GF_SERVER_ROOT_URL: http://${DOMAIN}${GRAFANA_PATH}
-      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
       # Admin and auth settings
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-rc-admin}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
