@@ -515,3 +515,40 @@ df -h
 # Docker system info
 docker system df
 ```
+
+---
+
+## Azure Container Apps (ACA) Troubleshooting
+
+### Rocket.Chat public URL works, but /grafana returns 404
+- Ensure the HTTP route from `rocketchat` → `grafana` exists.
+- With latest CLI:
+```bash
+az containerapp ingress route add \
+  -g Rocketchat_RG -n rocketchat \
+  --app-endpoint /grafana --service grafana --service-port 3000 --rewrite-target /
+```
+- Otherwise add the route via Azure Portal (Container App → Ingress → Routes).
+
+### MongoDB replica set not initialized
+- Run the one-time job again:
+```bash
+az containerapp job start -g Rocketchat_RG -n mongo-init-replica
+```
+
+### Container images fail to pull
+- Import upstream images into your ACR (names must match Bicep placeholders):
+```bash
+ACR=<your-acr-name>
+az acr import -n $ACR --source docker.io/rocketchat/rocket.chat:6.5.4 --image rocketchat:latest
+az acr import -n $ACR --source docker.io/grafana/grafana:12.0.2      --image grafana:latest
+az acr import -n $ACR --source docker.io/bitnami/mongodb:7.0         --image mongo:latest
+az acr import -n $ACR --source docker.io/prom/prometheus:v3.4.2      --image prometheus:latest
+az acr import -n $ACR --source docker.io/nats:2.10-alpine            --image nats:latest
+az acr import -n $ACR --source docker.io/bitnami/mongodb-exporter:0.40.0 --image mongodb-exporter:latest
+az acr import -n $ACR --source docker.io/natsio/prometheus-nats-exporter:0.14.0 --image nats-exporter:latest
+```
+
+### Grafana admin password unknown
+- It’s stored as an ACA secret named `grafana-admin-password`.
+- Update by redeploying or via Portal → Container App → Secrets.
