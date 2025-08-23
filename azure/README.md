@@ -9,6 +9,20 @@ A production-ready, single-region (UK South) deployment for the Rocket.Chat obse
 - ACA Job: `mongo-init-replica` (manual trigger)
 - Single-ingress model: `/` → Rocket.Chat, `/grafana` → internal Grafana
 
+## GitHub Actions (optional, recommended)
+Two workflows are provided:
+- `.github/workflows/aca-deploy.yml`: Deploy full stack (manual input `rocketchat_tag`, default 7.9.2)
+- `.github/workflows/aca-update-rocketchat.yml`: Update Rocket.Chat tag (manual or on GitHub Release)
+
+Required repository secrets for OIDC login and passwords:
+- `AZURE_CLIENT_ID` (Federated credential-enabled App Registration)
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `GRAFANA_ADMIN_PASSWORD`
+
+Grant the App Registration the needed roles on resource group `Rocketchat_RG`:
+- `Contributor` (or minimal: `Container App Contributor`, `AcrPull`, `AcrPush`)
+
 ## Quick start
 ```bash
 # 1) Set a strong password for Grafana admin
