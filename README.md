@@ -164,6 +164,37 @@ curl -I http://YOUR_SERVER_IP
 
 ---
 
+## 🌐 Deploy to Azure Container Apps (ACA)
+
+A production-ready, single-region ACA deployment is included. It uses a single public ingress on `rocketchat` and keeps `grafana` internal (served via `/grafana` path).
+
+### Prerequisites
+- Azure CLI logged in on a machine that can access your subscription
+- Resource group: `Rocketchat_RG` (existing is fine)
+
+### One-command deploy
+```bash
+# From repo root
+export GRAFANA_ADMIN_PASSWORD='your-strong-secret'
+./azure/deploy-aca.sh
+```
+This will:
+- Deploy `azure/main.bicep` to `uksouth`
+- Create/resolve ACR and import required images
+- Run the one-time MongoDB init Job
+- Try to add the `/grafana` route to the internal Grafana app
+- Print the public FQDN for Rocket.Chat
+
+### DNS (Cloudflare)
+- Create a CNAME: `chat.canepro.me` → printed ACA FQDN (orange-cloud/proxied OK)
+
+### Notes
+- Path-based routing lives on the `rocketchat` app. If your CLI doesn’t support HTTP routes yet, add the route in Azure Portal after deploy.
+- Grafana’s admin password is stored as an ACA secret.
+- Node Exporter is intentionally omitted (not applicable to serverless).
+
+---
+
 **To stop:**
 ```bash
 make down

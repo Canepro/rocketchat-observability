@@ -1,0 +1,14 @@
+# files/grafana/provisioning/datasources/azure.yml
+apiVersion: 1
+datasources:
+  - name: Azure Monitor
+    type: azuremonitor
+    access: proxy
+    jsonData:
+      cloudName: 'AzureCloud'
+      tenantId: '$AZURE_TENANT_ID'
+      clientId: '$AZURE_CLIENT_ID'
+      subscriptionId: '$AZURE_SUBSCRIPTION_ID'
+    secureJsonData:
+      clientSecret: '$AZURE_CLIENT_SECRET'
+    isDefault: false
