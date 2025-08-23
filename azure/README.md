@@ -9,30 +9,17 @@ A production-ready, single-region (UK South) deployment for the Rocket.Chat obse
 - ACA Job: `mongo-init-replica` (manual trigger)
 - Single-ingress model: `/` → Rocket.Chat, `/grafana` → internal Grafana
 
-## GitHub Actions (optional, recommended)
-Two modes are provided:
-- OIDC (no secrets): `.github/workflows/aca-deploy.yml`, `.github/workflows/aca-update-rocketchat.yml` (requires App Registration & federated credential)
-- Self-hosted (no tenant admin): `.github/workflows/aca-deploy-selfhosted.yml`, `.github/workflows/aca-update-selfhosted.yml`
-  - Run a GitHub self-hosted runner on a machine where `az login` works
-  - Add runner labels: `self-hosted`, `linux`, `azure`
-
-Required repository secrets for both modes:
-- `GRAFANA_ADMIN_PASSWORD`
-
-For OIDC mode, also add:
-- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
-
-## Quick start
+## Quick start (manual)
 ```bash
 # 1) Set a strong password for Grafana admin
 export GRAFANA_ADMIN_PASSWORD='change-me'
 
 # 2) Deploy end-to-end (imports images, runs job, adds route)
 ./azure/deploy-aca.sh [rocketchat_tag]
-# Example: ./azure/deploy-aca.sh 7.9.3
+# Example: ./azure/deploy-aca.sh 7.9.2
 ```
 
-## Manual deployment
+## Manual deployment (step-by-step)
 ```bash
 # Resource group
 az group create -n Rocketchat_RG -l uksouth
@@ -41,13 +28,13 @@ az group create -n Rocketchat_RG -l uksouth
 az deployment group create \
   -g Rocketchat_RG \
   --template-file azure/main.bicep \
-  --parameters location=uksouth domain=chat.canepro.me grafanaAdminPassword="$GRAFANA_ADMIN_PASSWORD" rocketchatImageTag="7.9.3"
+  --parameters location=uksouth domain=chat.canepro.me grafanaAdminPassword="$GRAFANA_ADMIN_PASSWORD" rocketchatImageTag="7.9.2"
 
 # Discover ACR
 ACR=$(az acr list -g Rocketchat_RG --query "[0].name" -o tsv)
 
 # Import images
-az acr import -n $ACR --source docker.io/rocketchat/rocket.chat:7.9.3 --image rocketchat:7.9.3
+az acr import -n $ACR --source docker.io/rocketchat/rocket.chat:7.9.2 --image rocketchat:7.9.2
 az acr import -n $ACR --source docker.io/grafana/grafana:12.0.2      --image grafana:latest
 az acr import -n $ACR --source docker.io/bitnami/mongodb:7.0         --image mongo:latest
 az acr import -n $ACR --source docker.io/prom/prometheus:v3.4.2      --image prometheus:latest
@@ -68,18 +55,18 @@ az containerapp ingress route add \
   --rewrite-target /
 ```
 
-## Update Rocket.Chat fast
+## Update Rocket.Chat fast (manual)
 
 ### One-command update
 ```bash
-# Update to a specific tag (e.g., 9.10.0)
-./azure/update-rocketchat.sh 9.10.0
+# Update to a specific tag (e.g., 7.9.3)
+./azure/update-rocketchat.sh 7.9.3
 ```
 
 ### Canary (gradual) rollout
 ```bash
 # Send 10% of traffic to the new revision
-./azure/update-rocketchat.sh 9.10.0 --canary 10
+./azure/update-rocketchat.sh 7.9.3 --canary 10
 # Promote when ready
 az containerapp ingress traffic set -g Rocketchat_RG -n rocketchat --revision-weight latest=100
 ```
