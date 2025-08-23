@@ -10,18 +10,17 @@ A production-ready, single-region (UK South) deployment for the Rocket.Chat obse
 - Single-ingress model: `/` → Rocket.Chat, `/grafana` → internal Grafana
 
 ## GitHub Actions (optional, recommended)
-Two workflows are provided:
-- `.github/workflows/aca-deploy.yml`: Deploy full stack (manual input `rocketchat_tag`, default 7.9.2)
-- `.github/workflows/aca-update-rocketchat.yml`: Update Rocket.Chat tag (manual or on GitHub Release)
+Two modes are provided:
+- OIDC (no secrets): `.github/workflows/aca-deploy.yml`, `.github/workflows/aca-update-rocketchat.yml` (requires App Registration & federated credential)
+- Self-hosted (no tenant admin): `.github/workflows/aca-deploy-selfhosted.yml`, `.github/workflows/aca-update-selfhosted.yml`
+  - Run a GitHub self-hosted runner on a machine where `az login` works
+  - Add runner labels: `self-hosted`, `linux`, `azure`
 
-Required repository secrets for OIDC login and passwords:
-- `AZURE_CLIENT_ID` (Federated credential-enabled App Registration)
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
+Required repository secrets for both modes:
 - `GRAFANA_ADMIN_PASSWORD`
 
-Grant the App Registration the needed roles on resource group `Rocketchat_RG`:
-- `Contributor` (or minimal: `Container App Contributor`, `AcrPull`, `AcrPush`)
+For OIDC mode, also add:
+- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 
 ## Quick start
 ```bash

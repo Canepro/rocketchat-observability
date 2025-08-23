@@ -1,0 +1,28 @@
+name: Update Rocket.Chat (self-hosted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      rocketchat_tag:
+        description: "Rocket.Chat image tag to deploy (e.g., 7.9.3)"
+        required: true
+        default: "7.9.3"
+
+jobs:
+  update:
+    runs-on: [self-hosted, linux, azure]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Azure CLI login
+        run: |
+          az account show 1>/dev/null || (echo "Runner is not logged in. Run 'az login' once on the runner host." && exit 1)
+
+      - name: Update Rocket.Chat to tag
+        run: |
+          bash azure/update-rocketchat.sh "${{ inputs.rocketchat_tag }}"
+
+      - name: Print revisions
+        run: |
+          az containerapp revision list -g Rocketchat_RG -n rocketchat -o table || true
