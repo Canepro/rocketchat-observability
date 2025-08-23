@@ -15,7 +15,8 @@ A production-ready, single-region (UK South) deployment for the Rocket.Chat obse
 export GRAFANA_ADMIN_PASSWORD='change-me'
 
 # 2) Deploy end-to-end (imports images, runs job, adds route)
-./azure/deploy-aca.sh
+./azure/deploy-aca.sh [rocketchat_tag]
+# Example: ./azure/deploy-aca.sh 7.9.3
 ```
 
 ## Manual deployment
@@ -27,13 +28,13 @@ az group create -n Rocketchat_RG -l uksouth
 az deployment group create \
   -g Rocketchat_RG \
   --template-file azure/main.bicep \
-  --parameters location=uksouth domain=chat.canepro.me grafanaAdminPassword="$GRAFANA_ADMIN_PASSWORD"
+  --parameters location=uksouth domain=chat.canepro.me grafanaAdminPassword="$GRAFANA_ADMIN_PASSWORD" rocketchatImageTag="7.9.3"
 
 # Discover ACR
 ACR=$(az acr list -g Rocketchat_RG --query "[0].name" -o tsv)
 
 # Import images
-az acr import -n $ACR --source docker.io/rocketchat/rocket.chat:6.5.4 --image rocketchat:latest
+az acr import -n $ACR --source docker.io/rocketchat/rocket.chat:7.9.3 --image rocketchat:7.9.3
 az acr import -n $ACR --source docker.io/grafana/grafana:12.0.2      --image grafana:latest
 az acr import -n $ACR --source docker.io/bitnami/mongodb:7.0         --image mongo:latest
 az acr import -n $ACR --source docker.io/prom/prometheus:v3.4.2      --image prometheus:latest
@@ -52,6 +53,28 @@ az containerapp ingress route add \
   --service grafana \
   --service-port 3000 \
   --rewrite-target /
+```
+
+## Update Rocket.Chat fast
+
+### One-command update
+```bash
+# Update to a specific tag (e.g., 9.10.0)
+./azure/update-rocketchat.sh 9.10.0
+```
+
+### Canary (gradual) rollout
+```bash
+# Send 10% of traffic to the new revision
+./azure/update-rocketchat.sh 9.10.0 --canary 10
+# Promote when ready
+az containerapp ingress traffic set -g Rocketchat_RG -n rocketchat --revision-weight latest=100
+```
+
+### Rollback
+```bash
+az containerapp revision list -g Rocketchat_RG -n rocketchat -o table
+./azure/update-rocketchat.sh rollback <REVISION_NAME>
 ```
 
 ## DNS (Cloudflare)

@@ -19,6 +19,9 @@ param grafanaAdminPassword string = 'rc-admin'
 @description('MongoDB replica set name')
 param mongoReplicaSetName string = 'rs0'
 
+@description('Rocket.Chat image tag (e.g., 7.9.3). Defaults to latest.')
+param rocketchatImageTag string = 'latest'
+
 @description('Container Registry name (lowercase, globally unique). Will be created if it does not exist.')
 param acrName string = toLower('rcobs${uniqueString(resourceGroup().id)}')
 
@@ -361,7 +364,7 @@ resource rocketchat 'Microsoft.App/containerApps@2023-05-01' = {
 			containers: [
 				{
 					name: 'rocketchat'
-					image: '${acrServer}/rocketchat:latest'
+					image: '${acrServer}/rocketchat:${rocketchatImageTag}'
 					env: [
 						{ name: 'MONGO_URL', value: 'mongodb://mongo:27017/rocketchat?replicaSet=${mongoReplicaSetName}' },
 						{ name: 'ROOT_URL', value: 'https://${domain}' },

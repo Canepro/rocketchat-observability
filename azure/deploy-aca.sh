@@ -3,11 +3,12 @@ set -euo pipefail
 
 # Azure Container Apps deployment script (single region: UK South)
 # Usage:
-#   GRAFANA_ADMIN_PASSWORD='change-me' ./azure/deploy-aca.sh
+#   GRAFANA_ADMIN_PASSWORD='change-me' ./azure/deploy-aca.sh [rocketchat_tag]
 
 RG="Rocketchat_RG"
 LOCATION="uksouth"
 DOMAIN="chat.canepro.me"
+RC_TAG="${1:-latest}"
 
 require() { command -v "$1" >/dev/null 2>&1 || { echo "ERROR: $1 not found"; exit 1; }; }
 require az
@@ -25,18 +26,22 @@ fi
 echo "==> Creating resource group ($RG)"
 az group create --name "$RG" --location "$LOCATION" 1>/dev/null
 
-echo "==> Deploying Bicep template"
+echo "==> Deploying Bicep template (Rocket.Chat tag: $RC_TAG)"
 az deployment group create \
   --resource-group "$RG" \
   --template-file azure/main.bicep \
-  --parameters location="$LOCATION" domain="$DOMAIN" grafanaAdminPassword="$GRAFANA_ADMIN_PASSWORD"
+  --parameters location="$LOCATION" domain="$DOMAIN" grafanaAdminPassword="$GRAFANA_ADMIN_PASSWORD" rocketchatImageTag="$RC_TAG"
 
 echo "==> Discovering ACR"
 ACR_NAME=$(az acr list -g "$RG" --query "[0].name" -o tsv)
 ACR_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
 
 echo "==> Importing images into $ACR_NAME"
-az acr import -n "$ACR_NAME" --source docker.io/rocketchat/rocket.chat:6.5.4 --image rocketchat:latest
+az acr import -n "$ACR_NAME" --source docker.io/rocketchat/rocket.chat:${RC_TAG#latest}6.5.4 --image rocketchat:$RC_TAG || true
+# Import a known good tag if latest; otherwise import requested tag
+if [[ "$RC_TAG" != "latest" ]]; then
+  az acr import -n "$ACR_NAME" --source docker.io/rocketchat/rocket.chat:$RC_TAG --image rocketchat:$RC_TAG
+fi
 az acr import -n "$ACR_NAME" --source docker.io/grafana/grafana:12.0.2      --image grafana:latest
 az acr import -n "$ACR_NAME" --source docker.io/bitnami/mongodb:7.0         --image mongo:latest
 az acr import -n "$ACR_NAME" --source docker.io/prom/prometheus:v3.4.2      --image prometheus:latest
