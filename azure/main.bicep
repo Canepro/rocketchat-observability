@@ -387,6 +387,7 @@ resource mongoInitJob 'Microsoft.App/jobs@2023-05-01' = {
     configuration: {
       triggerType: 'Manual'
       replicaRetryLimit: 1
+      replicaTimeout: 1800
       manualTriggerConfig: {
         parallelism: 1
         replicaCompletionCount: 1
