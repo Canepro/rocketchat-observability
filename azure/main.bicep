@@ -107,7 +107,7 @@ resource mongo 'Microsoft.App/containerApps@2023-05-01' = {
             }
           ]
           resources: {
-            cpu: 1.0
+            cpu: json('1.0')
             memory: '2.0Gi'
           }
         }
@@ -143,7 +143,7 @@ resource nats 'Microsoft.App/containerApps@2023-05-01' = {
             '8222'
           ]
           resources: {
-            cpu: 0.5
+            cpu: json('0.5')
             memory: '1.0Gi'
           }
         }
@@ -181,7 +181,7 @@ resource mongodbExporter 'Microsoft.App/containerApps@2023-05-01' = {
             }
           ]
           resources: {
-            cpu: 0.25
+            cpu: json('0.25')
             memory: '0.5Gi'
           }
         }
@@ -218,7 +218,7 @@ resource natsExporter 'Microsoft.App/containerApps@2023-05-01' = {
             'http://nats:8222'
           ]
           resources: {
-            cpu: 0.25
+            cpu: json('0.25')
             memory: '0.5Gi'
           }
         }
@@ -250,7 +250,7 @@ resource prometheus 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'prometheus'
           image: '${acr.properties.loginServer}/prometheus:latest'
           resources: {
-            cpu: 0.5
+            cpu: json('0.5')
             memory: '1.0Gi'
           }
         }
@@ -301,7 +301,7 @@ resource grafana 'Microsoft.App/containerApps@2023-05-01' = {
             }
           ]
           resources: {
-            cpu: 0.5
+            cpu: json('0.5')
             memory: '1.0Gi'
           }
         }
@@ -356,7 +356,7 @@ resource rocketchat 'Microsoft.App/containerApps@2023-05-01' = {
             }
           ]
           resources: {
-            cpu: 1.0
+            cpu: json('1.0')
             memory: '2.0Gi'
           }
         }
@@ -398,13 +398,13 @@ resource mongoInitJob 'Microsoft.App/jobs@2023-05-01' = {
           name: 'mongo-init'
           image: '${acr.properties.loginServer}/mongo:latest'
           resources: {
-            cpu: 0.5
+            cpu: json('0.5')
             memory: '1.0Gi'
           }
           command: [
             'bash'
             '-c'
-            'sleep 10; echo Initializing MongoDB replica set...; mongosh --host mongo --port 27017 --eval ''try { const s = rs.status(); if (s.ok === 1) { print("Replica set already initialized"); quit(0); } } catch (e) { } rs.initiate({ _id: "${mongoReplicaSetName}", members: [ { _id: 0, host: "mongo:27017" } ] });'''
+            'sleep 10 && echo "Initializing MongoDB replica set..." && mongosh --host mongo --port 27017 --eval "try { const s = rs.status(); if (s.ok === 1) { print(\\"Replica set already initialized\\"); quit(0); } } catch (e) { } rs.initiate({ _id: \\"${mongoReplicaSetName}\\", members: [ { _id: 0, host: \\"mongo:27017\\" } ] });" || true'
           ]
         }
       ]
