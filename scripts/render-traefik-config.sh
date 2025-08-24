@@ -40,4 +40,47 @@ if [[ -z "${GRAFANA_DOMAIN:-}" ]]; then
 	sed -i '/# Note: grafana-subdomain router requires GRAFANA_DOMAIN/,/middlewares: \[\]/d' "$OUTPUT"
 fi
 
+# Add HTTPS routers if TRAEFIK_PROTOCOL is https
+if [[ "${TRAEFIK_PROTOCOL}" == "https" ]]; then
+	echo "Adding HTTPS routers with TLS configuration"
+	
+	# Add HTTPS rocketchat router
+	cat >> "$OUTPUT" << EOF
+
+    rocketchat-https:
+      rule: "Host(\`${DOMAIN}\`)"
+      entryPoints:
+        - websecure
+      service: rocketchat-svc
+      middlewares: []
+      tls:
+        certResolver: le
+
+    grafana-path-https:
+      rule: "Host(\`${DOMAIN}\`) && PathPrefix(\`${GRAFANA_PATH}\`)"
+      entryPoints:
+        - websecure
+      service: grafana-svc
+      middlewares:
+        - grafana-strip
+      tls:
+        certResolver: le
+EOF
+
+	# Add HTTPS grafana-subdomain router if GRAFANA_DOMAIN is set
+	if [[ -n "${GRAFANA_DOMAIN:-}" ]]; then
+		cat >> "$OUTPUT" << EOF
+
+    grafana-subdomain-https:
+      rule: "Host(\`${GRAFANA_DOMAIN}\`)"
+      entryPoints:
+        - websecure
+      service: grafana-svc
+      middlewares: []
+      tls:
+        certResolver: le
+EOF
+	fi
+fi
+
 echo "Rendered Traefik dynamic config to $OUTPUT"
