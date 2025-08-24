@@ -1,8 +1,8 @@
-# Rocket.Chat + MongoDB + Prometheus + Grafana + Traefik - Reference Stack
+# Rocket.Chat + MongoDB + Prometheus + Grafana + Traefik - Production Stack
 
 [![Compose Lint](https://github.com/Canepro/rocketchat-observability/actions/workflows/compose-lint.yml/badge.svg)](https://github.com/Canepro/rocketchat-observability/actions/workflows/compose-lint.yml)
 
-A turnkey, reproducible local/lab stack with complete observability and a clean path to production.
+A production-ready, turnkey stack with complete observability and monitoring. Perfect for demos, testing, and production workloads.
 
 ## 📋 Documentation
 
@@ -12,12 +12,13 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
 
 ## 📖 Table of Contents
 
-- [Rocket.Chat + MongoDB + Prometheus + Grafana + Traefik - Reference Stack](#rocketchat--mongodb--prometheus--grafana--traefik---reference-stack)
+- [Rocket.Chat + MongoDB + Prometheus + Grafana + Traefik - Production Stack](#rocketchat--mongodb--prometheus--grafana--traefik---production-stack)
   - [📋 Documentation](#-documentation)
   - [📖 Table of Contents](#-table-of-contents)
   - [✨ Highlights](#-highlights)
-  - [Quick start (TL;DR)](#quick-start-tldr)
-    - [🚀 **TRUE ONE-CLICK DEPLOY**](#-true-one-click-deploy)
+  - [🚀 Quick Start](#-quick-start)
+    - [Local Development](#local-development)
+    - [Azure VM Production Deployment](#azure-vm-production-deployment)
   - [Engine-agnostic design](#engine-agnostic-design)
   - [Files overview](#files-overview)
   - [Configuration (.env)](#configuration-env)
@@ -28,7 +29,7 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
   - [Resetting or completely cleaning a demo](#resetting-or-completely-cleaning-a-demo)
   - [Backing up and restoring Rocket.Chat data (MongoDB)](#backing-up-and-restoring-rocketchat-data-mongodb)
   - [Upgrading Rocket.Chat](#upgrading-rocketchat)
-  - [🛠️ Built-in Validation \& Health Monitoring](#️-built-in-validation--health-monitoring)
+  - [🛠️ Built-in Validation & Health Monitoring](#️-built-in-validation--health-monitoring)
     - [Pre-deployment validation](#pre-deployment-validation)
     - [Health monitoring during startup](#health-monitoring-during-startup)
   - [Common tasks](#common-tasks)
@@ -39,6 +40,7 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
 
 ## ✨ Highlights
 
+- **Production-Ready**: Complete observability stack with monitoring, logging, and health checks
 - **True One-Click Deploy**: Automated validation, health checks, and URL discovery
 - **Bulletproof Reliability**: Systematic fixes for MongoDB replica sets, Traefik health checks, and Grafana configuration
 - **Beautiful Visual Experience**: Enhanced UX with progress indicators, color-coded output, and professional deployment feedback
@@ -50,9 +52,9 @@ A turnkey, reproducible local/lab stack with complete observability and a clean 
 - **Smart defaults**: Path-based Grafana access, validated configuration
 - **Comprehensive Documentation**: Detailed troubleshooting guide with focus on common domain configuration issues
 
-## Quick start (TL;DR)
+## 🚀 Quick Start
 
-### 🚀 **TRUE ONE-CLICK DEPLOY**
+### Local Development
 
 1) **Install Docker (if needed):**
 ```bash
@@ -67,6 +69,39 @@ cp env.example .env          # ⚠️ IMPORTANT: Edit DOMAIN if accessing remote
 make demo-up                 # Everything validates, deploys, and shows URLs!
 ```
 
+### Azure VM Production Deployment
+
+For production-grade deployments on Azure VM:
+
+1) **Create Azure VM:**
+```bash
+az vm create \
+  --resource-group Rocketchat_RG \
+  --name rocketchat-prod \
+  --image Ubuntu2204 \
+  --size Standard_B4ms \
+  --admin-username azureuser \
+  --generate-ssh-keys \
+  --public-ip-sku Standard
+
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 80,443,3000,5050,9090,8080
+```
+
+2) **Deploy to VM:**
+```bash
+ssh azureuser@<VM_PUBLIC_IP>
+sudo apt update && sudo apt install -y git make docker.io docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker azureuser
+newgrp docker
+
+git clone <YOUR_REPO_URL> ~/rocketchat-observability
+cd ~/rocketchat-observability
+cp env.example .env
+# Edit .env for production settings
+make prod-up
+```
+
 **Example output:**
 ```
 🔍 Validating environment configuration...
@@ -74,9 +109,9 @@ make demo-up                 # Everything validates, deploys, and shows URLs!
 ✅ Environment validation passed!
 
 🚀 Configuration summary:
-   Domain: localhost
-   Rocket.Chat: http://localhost:3000
-   Grafana: http://localhost/grafana (subpath mode)
+   Domain: chat.yourdomain.com
+   Rocket.Chat: https://chat.yourdomain.com
+   Grafana: https://chat.yourdomain.com/grafana (subpath mode)
 
 📥 Fetching Grafana dashboards...
 🚀 Starting services...
@@ -98,17 +133,7 @@ make demo-up                 # Everything validates, deploys, and shows URLs!
 
 🎉 All services are healthy!
 ╭─────────────────────────────────────────────────────╮
-│  Deployment completed successfully! 🚀              │
-╰─────────────────────────────────────────────────────╯
-
-🌐 Your Rocket.Chat Observability Stack:
-Rocket.Chat: http://localhost
-Grafana:     http://localhost/grafana
 ```
-
-3) **Access your services:**
-- **Rocket.Chat**: Open the Rocket.Chat URL (create admin account on first visit)
-- **Grafana**: Login with user `admin`, password `rc-admin` (or your custom password from `.env`)
 
 ## 🌐 **Domain Configuration (Important!)**
 
@@ -175,7 +200,7 @@ A production-ready, single-region ACA deployment is included. It uses a single p
 ### One-command deploy
 ```bash
 # From repo root
-export GRAFANA_ADMIN_PASSWORD='your-strong-secret'
+export GRAFANA_ADMIN_PASSWORD='<YOUR_GRAFANA_ADMIN_PASSWORD>'
 ./azure/deploy-aca.sh
 ```
 This will:

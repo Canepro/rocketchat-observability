@@ -80,12 +80,7 @@ help:
 	@echo
 	@echo "Engine: $(COMPOSE)"
 	@echo "Env file: $(ENV_FILE)"
-	@if [ -f "$(ENV_FILE)" ]; then \
-	  GRAFANA_PASS=$$(grep -E '^GRAFANA_ADMIN_PASSWORD=' $(ENV_FILE) | cut -d= -f2-); \
-	  echo "Grafana admin password: $${GRAFANA_PASS:-rc-admin}"; \
-	else \
-	  echo "Grafana admin password: rc-admin"; \
-	fi
+	@echo "Grafana admin password: (value from GRAFANA_ADMIN_PASSWORD in $(ENV_FILE))"
 
 .PHONY: bootstrap
 bootstrap: render-traefik fetch-dashboards

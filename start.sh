@@ -125,7 +125,7 @@ show_info() {
     echo "   • Rocket.Chat: http://localhost:3000"
     echo "   • Grafana: http://localhost:5050"
     echo "     - Username: admin"
-    echo "     - Password: rc-admin"
+    echo "     - Password: rc-admin (or value from GRAFANA_ADMIN_PASSWORD in .env)"
     echo "   • Prometheus: http://127.0.0.1:9000"
     echo "   • Traefik Dashboard: http://localhost:8080"
     echo ""
