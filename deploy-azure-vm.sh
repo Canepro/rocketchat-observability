@@ -23,11 +23,15 @@ az vm create \
   --nsg-rule None \
   --custom-data cloud-init.yaml
 
-# Open required ports
+# Open required ports with different priorities
 echo "🔓 Opening ports..."
-for port in 22 80 443 3000 5050 9090 8080; do
-  az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port $port
-done
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 22 --priority 1000
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 80 --priority 1001
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 443 --priority 1002
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 3000 --priority 1003
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 5050 --priority 1004
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 9090 --priority 1005
+az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 8080 --priority 1006
 
 # Get IP
 VM_IP=$(az vm show -d -g Rocketchat_RG -n rocketchat-prod --query publicIps -o tsv)
