@@ -1,0 +1,45 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-plugin
+  - git
+  - make
+  - ufw
+
+runcmd:
+  # Enable and start Docker
+  - systemctl enable docker
+  - systemctl start docker
+  
+  # Add user to docker group
+  - usermod -aG docker azureuser
+  
+  # Configure firewall
+  - ufw --force enable
+  - ufw allow ssh
+  - ufw allow 80
+  - ufw allow 443
+  - ufw allow 3000
+  - ufw allow 5050
+  - ufw allow 9090
+  - ufw allow 8080
+  
+  # Clone repo and setup
+  - cd /home/azureuser
+  - git clone https://github.com/Canepro/rocketchat-observability.git rocketchat-observability
+  - cd rocketchat-observability
+  - cp env.example .env
+  
+  # Configure for production
+  - sed -i 's/^DOMAIN=.*/DOMAIN=localhost/' .env
+  - sed -i 's/^ROOT_URL=.*/ROOT_URL=http:\/\/localhost:3000/' .env
+  - sed -i 's/^GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=rc-admin-prod/' .env
+  - sed -i 's/^PROMETHEUS_LISTEN_ADDR=.*/PROMETHEUS_LISTEN_ADDR=0.0.0.0/' .env
+  
+  # Deploy stack
+  - su - azureuser -c "cd /home/azureuser/rocketchat-observability && make prod-up"
+
+final_message: "Rocket.Chat stack deployment completed!"
