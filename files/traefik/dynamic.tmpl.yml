@@ -16,17 +16,21 @@ http:
     rocketchat:
       rule: "Host(`${DOMAIN}`)"
       entryPoints:
-        - web
+        - ${TRAEFIK_PROTOCOL}
       service: rocketchat-svc
       middlewares: []
+      tls:
+        certResolver: le
 
     grafana-path:
       rule: "Host(`${DOMAIN}`) && PathPrefix(`${GRAFANA_PATH}`)"
       entryPoints:
-        - web
+        - ${TRAEFIK_PROTOCOL}
       service: grafana-svc
       middlewares:
         - grafana-strip
+      tls:
+        certResolver: le
 
     # Note: grafana-subdomain router requires GRAFANA_DOMAIN to be set
     # If GRAFANA_DOMAIN is empty, this router will be invalid and should be removed
@@ -34,9 +38,11 @@ http:
     grafana-subdomain:
       rule: "Host(`${GRAFANA_DOMAIN}`)"
       entryPoints:
-        - web
+        - ${TRAEFIK_PROTOCOL}
       service: grafana-svc
       middlewares: []
+      tls:
+        certResolver: le
 
   services:
     rocketchat-svc:
