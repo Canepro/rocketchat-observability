@@ -104,16 +104,23 @@ check_requirements() {
 
 # Start the stack
 start_stack() {
-    print_status "Starting Rocket.Chat Observability Stack..."
+    print_status "Starting Rocket.Chat Observability Stack (Demo Mode)..."
     
-    # Validate configuration first
-    print_status "Validating configuration..."
-    $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config > /dev/null
+    # Use demo overlay for one-click setup
+    print_status "Using demo configuration (no authentication, ephemeral ports)..."
     
-    # Start services
-    $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml up -d
+    # Start services with demo overlay
+    $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml up -d
     
-    print_success "Stack started successfully!"
+    print_success "Demo stack started successfully!"
+    
+    # Wait for services to be ready
+    print_status "Waiting for services to become ready..."
+    sleep 10
+    
+    # Show progress
+    print_status "Checking service status..."
+    $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml ps
 }
 
 # Show service information

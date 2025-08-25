@@ -1,7 +1,69 @@
-# Demo overlay: publish Traefik to ephemeral localhost ports so the stack can always start.
-# Works with Docker or Podman, rootless or rootful, and avoids port conflicts.
+# Demo overlay: Ready-to-use configuration for local development and testing
+# This overlay provides:
+# - Ephemeral localhost ports to avoid conflicts
+# - No authentication requirements
+# - Simplified MongoDB setup
+# - Traefik dashboard accessible locally
+# - All services configured for immediate use
+
 services:
   traefik:
     ports:
       - "${TRAEFIK_HTTP_BIND_HOST:-127.0.0.1}::80"
       - "${TRAEFIK_HTTPS_BIND_HOST:-127.0.0.1}::443"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    environment:
+      # Enable Traefik dashboard for demo
+      - TRAEFIK_API_INSECURE=true
+      - TRAEFIK_PROTOCOL=http
+
+  mongo:
+    # Simplified MongoDB for demo - no authentication
+    environment:
+      - MONGODB_ENABLE_DIRECTORY_PER_DB=true
+      - MONGODB_DISABLE_SYMLINKS=true
+      # Disable authentication for demo
+      - MONGODB_ENABLE_AUTHENTICATION=false
+      - MONGODB_REPLICA_SET_NAME=rs0
+    command: >
+      --replSet rs0
+      --bind_ip_all
+      --port 27017
+
+  rocketchat:
+    environment:
+      # Demo-friendly settings
+      - ROOT_URL=http://localhost:3000
+      - MONGO_URL=mongodb://mongo:27017/rocketchat?replicaSet=rs0
+      - MONGO_OPLOG_URL=mongodb://mongo:27017/local?replicaSet=rs0
+      # Disable registration token for demo
+      - REG_TOKEN=
+      # Use NATS transporter
+      - NATS_URL=nats://nats:4222
+      # Enable metrics for Prometheus
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9458
+
+  prometheus:
+    environment:
+      # Listen on all interfaces for demo
+      - PROMETHEUS_LISTEN_ADDR=0.0.0.0
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    environment:
+      # Demo admin password
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-rc-admin}
+      # Enable anonymous access for demo
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    ports:
+      - "${GRAFANA_HOST_PORT:-5050}:3000"
+
+  nats:
+    # NATS configuration for demo
+    command: >
+      --jetstream
+      --http_port 8222
+      --port 4222

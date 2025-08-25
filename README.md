@@ -6,6 +6,7 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
 
 ## 📋 Documentation
 
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Complete guide for demo, production, and cloud deployments
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrade from older versions and understand the new overlay architecture
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions with overlay-specific scenarios
 - **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Journey from debugging hell to one-click deployment, architecture decisions and improvements
@@ -54,86 +55,58 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
 
 ## 🚀 Quick Start
 
-### Local Development
+### Demo Mode (One-Click Setup)
 
-1) **Install Docker (if needed):**
-```bash
-curl -L https://get.docker.com | sh
-```
+For immediate testing and development:
 
-2) **Deploy the stack:**
 ```bash
-git clone --depth 1 https://github.com/Canepro/rocketchat-observability.git
+# 1. Clone the repository
+git clone <your-repo-url>
 cd rocketchat-observability
-cp env.example .env          # ⚠️ IMPORTANT: Edit DOMAIN if accessing remotely!
-make demo-up                 # Everything validates, deploys, and shows URLs!
+
+# 2. Start the demo stack (no configuration needed)
+./start.sh
+
+# Or use the Makefile
+make demo-up
 ```
 
-### Azure VM Production Deployment
+**Demo Features:**
+- ✅ No configuration required
+- ✅ Works on any OS with Docker/Podman
+- ✅ Ephemeral ports to avoid conflicts
+- ✅ No authentication barriers
+- ✅ Ready in ~2 minutes
 
-For production-grade deployments on Azure VM:
+**Access URLs:**
+- Rocket.Chat: http://localhost:3000
+- Grafana: http://localhost:5050 (admin/rc-admin)
+- Prometheus: http://localhost:9090
+- Traefik Dashboard: http://localhost:8080
 
-1) **Create Azure VM:**
+### Production Deployment
+
+For production deployments, see the comprehensive **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)**.
+
+**Quick Production Setup:**
 ```bash
-az vm create \
-  --resource-group Rocketchat_RG \
-  --name rocketchat-prod \
-  --image Ubuntu2204 \
-  --size Standard_B4ms \
-  --admin-username azureuser \
-  --generate-ssh-keys \
-  --public-ip-sku Standard
-
-az vm open-port --resource-group Rocketchat_RG --name rocketchat-prod --port 80,443,3000,5050,9090,8080
-```
-
-2) **Deploy to VM:**
-```bash
-ssh azureuser@<VM_PUBLIC_IP>
-sudo apt update && sudo apt install -y git make docker.io docker-compose-plugin
-sudo systemctl enable --now docker
-sudo usermod -aG docker azureuser
-newgrp docker
-
-git clone <YOUR_REPO_URL> ~/rocketchat-observability
-cd ~/rocketchat-observability
+# 1. Clone and configure
+git clone <your-repo-url>
+cd rocketchat-observability
 cp env.example .env
-# Edit .env for production settings
+
+# 2. Edit .env with your production values
+nano .env
+
+# 3. Deploy production stack
 make prod-up
 ```
 
-**Example output:**
-```
-🔍 Validating environment configuration...
-✅ Docker runtime detected and accessible
-✅ Environment validation passed!
-
-🚀 Configuration summary:
-   Domain: chat.yourdomain.com
-   Rocket.Chat: https://chat.yourdomain.com
-   Grafana: https://chat.yourdomain.com/grafana (subpath mode)
-
-📥 Fetching Grafana dashboards...
-🚀 Starting services...
-⏳ Waiting for services to start...
-🔄 Waiting for services to become healthy (timeout: 600s)
-╭─────────────────────────────────────────────────────╮
-│  Please wait while we verify all services...        │
-╰─────────────────────────────────────────────────────╯
-
-⏳ [1/4] Checking MongoDB and replica set...
-    ✅ MongoDB is ready
-⏳ [2/4] Checking Traefik reverse proxy...
-    🔍 Traefik dashboard port detected: 8080
-    ✅ Traefik is healthy (dashboard: http://localhost:8080/dashboard/)
-⏳ [3/4] Checking Rocket.Chat application...
-    ✅ Rocket.Chat is healthy
-⏳ [4/4] Checking Grafana monitoring dashboard...
-    ✅ Grafana is healthy
-
-🎉 All services are healthy!
-╭─────────────────────────────────────────────────────╮
-```
+**Production Prerequisites:**
+- Domain name pointing to your server
+- Server with Docker/Podman installed
+- Ports 80, 443 open on firewall
+- SSL certificate (Let's Encrypt auto-configured)
 
 ## 🌐 **Domain Configuration (Important!)**
 
