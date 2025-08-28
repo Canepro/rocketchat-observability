@@ -31,7 +31,11 @@ services:
     entrypoint: ["bash", "-lc"]
     command:
       - >-
-        sleep 10;
+        for i in {1..30}; do
+          mongosh --host mongo --port ${MONGODB_PORT_NUMBER} --eval "db.runCommand('ping')" >/dev/null 2>&1 && break;
+          echo "Waiting for MongoDB...";
+          sleep 2;
+        done;
         echo "Initializing MongoDB replica set (robust)...";
         mongosh --host mongo --port ${MONGODB_PORT_NUMBER} --eval '
           function initReplicaSet() {

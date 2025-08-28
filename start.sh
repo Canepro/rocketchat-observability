@@ -3,7 +3,7 @@
 # Rocket.Chat Observability Stack - One-Click Startup Script
 # This script provides a simple way to get started with minimal configuration
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -29,41 +29,16 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Check if we're in the right directory
 if [ ! -f "compose.yml" ]; then
     print_error "Please run this script from the rocketchat-observability directory"
     exit 1
 fi
 
-# Detect container runtime
-detect_runtime() {
-    if command -v docker &> /dev/null; then
-        # Check if docker compose is available
-        if docker compose version &> /dev/null; then
-            COMPOSE="docker compose"
-            print_success "Detected Docker Compose"
-        elif command -v docker-compose &> /dev/null; then
-            COMPOSE="docker-compose"
-            print_success "Detected Docker Compose (legacy)"
-        else
-            print_error "Docker found but docker compose is not available."
-            print_error "Please install Docker Compose or update Docker Desktop."
-            exit 1
-        fi
-    elif command -v podman &> /dev/null; then
-        if podman compose version &> /dev/null; then
-            COMPOSE="podman compose"
-            print_success "Detected Podman Compose"
-        else
-            print_error "Podman found but podman compose is not available."
-            print_error "Please install podman-compose."
-            exit 1
-        fi
-    else
-        print_error "Neither Docker nor Podman found. Please install one of them."
-        exit 1
-    fi
-}
+source scripts/runtime-detect.sh
 
 # Setup environment file
 setup_env() {
@@ -77,97 +52,25 @@ setup_env() {
     fi
 }
 
-# Check system requirements
-check_requirements() {
-    print_status "Checking system requirements..."
-    
-    # Check available memory (at least 4GB recommended)
-    if command -v free &> /dev/null; then
-        MEMORY_GB=$(free -g | awk '/^Mem:/{print $2}')
-        if [ "$MEMORY_GB" -lt 4 ]; then
-            print_warning "Less than 4GB RAM detected. Performance may be slow."
-        else
-            print_success "Memory: ${MEMORY_GB}GB available"
-        fi
-    fi
-    
-    # Check available disk space (at least 5GB recommended)
-    if command -v df &> /dev/null; then
-        DISK_GB=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
-        if [ "$DISK_GB" -lt 5 ]; then
-            print_warning "Less than 5GB free disk space. Consider freeing up space."
-        else
-            print_success "Disk space: ${DISK_GB}GB available"
-        fi
-    fi
-}
-
-# Start the stack
-start_stack() {
-    print_status "Starting Rocket.Chat Observability Stack (Demo Mode)..."
-    
-    # Use demo overlay for one-click setup
-    print_status "Using demo configuration (no authentication, ephemeral ports)..."
-    
-    # Start services with demo overlay
-    $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml up -d
-    
-    print_success "Demo stack started successfully!"
-    
-    # Wait for services to be ready
-    print_status "Waiting for services to become ready..."
-    sleep 10
-    
-    # Show progress
-    print_status "Checking service status..."
-    $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.demo.yml -f compose.nats-exporter.yml ps
-}
-
-# Show service information
-show_info() {
-    echo ""
-    echo "🎉 Rocket.Chat Observability Stack is now running!"
-    echo ""
-    echo "📱 Access your services:"
-    echo "   • Rocket.Chat: http://localhost:3000"
-    echo "   • Grafana: http://localhost:5050"
-    echo "     - Username: admin"
-    echo "     - Password: rc-admin (or value from GRAFANA_ADMIN_PASSWORD in .env)"
-    echo "   • Prometheus: http://127.0.0.1:9000"
-    echo "   • Traefik Dashboard: http://localhost:8080"
-    echo ""
-    echo "🔧 Useful commands:"
-    echo "   • View logs: make logs"
-    echo "   • Check status: make status"
-    echo "   • Stop stack: make down"
-    echo "   • Full help: make help"
-    echo ""
-    print_warning "First startup may take a few minutes. Services will be ready when all containers show 'healthy' status."
-}
-
-# Main execution
 main() {
     echo "🚀 Rocket.Chat Observability Stack - One-Click Startup"
     echo "=================================================="
     echo ""
-    
-    detect_runtime
-    check_requirements
+
+    scripts/check-requirements.sh
     setup_env
-    start_stack
-    show_info
+    make demo-up
 }
 
-# Handle script arguments
 case "${1:-}" in
-    "minimal")
+    minimal)
         print_status "Starting minimal stack (Rocket.Chat + Traefik only)..."
+        scripts/check-requirements.sh
         setup_env
         $COMPOSE --env-file .env -f compose.traefik.yml -f compose.yml up -d
         print_success "Minimal stack started!"
-        echo "🌐 Rocket.Chat: http://localhost:3000"
         ;;
-    "help"|"-h"|"--help")
+    help|-h|--help)
         echo "Usage: $0 [option]"
         echo ""
         echo "Options:"

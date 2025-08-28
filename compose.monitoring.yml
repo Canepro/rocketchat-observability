@@ -21,12 +21,12 @@ services:
     volumes:
       - prometheus_tsdb:/prometheus
       - ./files/prometheus:/etc/prometheus:Z
-    # healthcheck:
-    #   test: ["CMD", "nc", "-zv", "-w", "10", "localhost", "9090"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 10
-    #   start_period: 10s
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9090"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
 
   # Node Exporter exposes host machine metrics
   node-exporter:
@@ -72,5 +72,4 @@ services:
 
 volumes:
   prometheus_tsdb: {driver: local}
-  prometheus_config: {driver: local}
   grafana_data: {driver: local}

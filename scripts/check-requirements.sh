@@ -3,7 +3,10 @@
 # Rocket.Chat Observability Stack - Requirements Checker
 # This script validates your system before deployment
 
-set -e
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/runtime-detect.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -35,55 +38,16 @@ echo ""
 
 # Check container runtime
 print_status "Checking container runtime..."
-
-if command -v docker &> /dev/null; then
-    DOCKER_VERSION=$(docker --version)
-    print_success "Docker found: $DOCKER_VERSION"
-    
-    # Check if Docker daemon is running
-    if docker info &> /dev/null; then
-        print_success "Docker daemon is running"
-    else
-        print_error "Docker daemon is not running. Please start Docker."
-        exit 1
-    fi
-elif command -v podman &> /dev/null; then
-    PODMAN_VERSION=$(podman --version)
-    print_success "Podman found: $PODMAN_VERSION"
-    
-    # Check if Podman is working
-    if podman info &> /dev/null; then
-        print_success "Podman is working correctly"
-    else
-        print_error "Podman is not working correctly. Please check your setup."
-        exit 1
-    fi
-else
-    print_error "Neither Docker nor Podman found."
-    echo "Please install one of the following:"
-    echo "  • Docker Desktop: https://www.docker.com/products/docker-desktop"
-    echo "  • Podman: https://podman.io/getting-started/installation"
-    exit 1
-fi
+RUNTIME_VERSION=$($RUNTIME --version | head -n1)
+print_success "$RUNTIME found: $RUNTIME_VERSION"
 
 # Check compose
 print_status "Checking compose support..."
-
-if command -v docker &> /dev/null; then
-    if docker compose version &> /dev/null; then
-        COMPOSE_VERSION=$(docker compose version --short)
-        print_success "Docker Compose found: $COMPOSE_VERSION"
-    else
-        print_error "Docker Compose not found. Please install Docker Compose."
-        exit 1
-    fi
-elif command -v podman &> /dev/null; then
-    if podman compose version &> /dev/null; then
-        print_success "Podman Compose is available"
-    else
-        print_error "Podman Compose not found. Please install podman-compose."
-        exit 1
-    fi
+if COMPOSE_VERSION=$($COMPOSE version --short 2>/dev/null); then
+    print_success "Compose found: $COMPOSE_VERSION"
+else
+    print_error "Compose command not found. Please install Docker/Podman compose plugin."
+    exit 1
 fi
 
 # Check system resources
@@ -156,7 +120,7 @@ echo "✅ Requirements check completed!"
 echo ""
 echo "🎯 Next steps:"
 echo "   • Run './start.sh' to deploy the stack"
-echo "   • Or run 'make up' for Makefile-based deployment"
+echo "   • Or run 'make demo-up' for Makefile-based deployment"
 echo ""
 echo "📚 For more information:"
 echo "   • Run 'make help' for all available commands"

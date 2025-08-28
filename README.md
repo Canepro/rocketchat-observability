@@ -46,6 +46,7 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
 - **Bulletproof Reliability**: Systematic fixes for MongoDB replica sets, Traefik health checks, and Grafana configuration
 - **Beautiful Visual Experience**: Enhanced UX with progress indicators, color-coded output, and professional deployment feedback
 - **Engine-agnostic**: Works on Docker or Podman (rootless or rootful)
+- **Unified runtime detection**: Shared script ensures consistent Docker/Podman handling
 - **Zero port conflicts**: Demo overlay uses ephemeral ports automatically
 - **Production-ready**: File-provider Traefik (no docker.sock), single edge for all apps
 - **Complete observability**: Rocket.Chat, MongoDB, Node Exporter, Traefik, and NATS metrics
@@ -65,9 +66,9 @@ git clone <your-repo-url>
 cd rocketchat-observability
 
 # 2. Start the demo stack (no configuration needed)
-./start.sh
+./start.sh  # runs requirements check and delegates to Makefile
 
-# Or use the Makefile
+# Or use the Makefile directly
 make demo-up
 ```
 

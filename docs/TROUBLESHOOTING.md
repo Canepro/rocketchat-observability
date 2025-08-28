@@ -117,7 +117,7 @@ command:
 # Copy the updated template with all required variables
 cp .env.example .env
 
-# Or run the setup script which will create it automatically
+# Or run the setup script which will create it automatically and validate prerequisites
 ./start.sh
 
 # Manual fix: ensure all image variables have valid values
@@ -138,7 +138,7 @@ cp .env.example .env
 # Make sure .env.example exists and copy it to .env
 cp .env.example .env
 
-# Or run the setup script
+# Or run the setup script (includes requirements check)
 ./start.sh
 ```
 

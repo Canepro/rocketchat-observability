@@ -7,8 +7,19 @@
 #    If you get 404 errors after deployment, check your DOMAIN setting in .env
 #    For remote access: DOMAIN should be your server IP or domain name
 
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/runtime-detect.sh"
+
 TIMEOUT=${1:-600}  # Default 10 minutes for slower environments
 INTERVAL=10
+
+# Resolve container IDs dynamically
+MONGO_CONTAINER=$($COMPOSE ps -q mongo 2>/dev/null || true)
+TRAEFIK_CONTAINER=$($COMPOSE ps -q traefik 2>/dev/null || true)
+RC_CONTAINER=$($COMPOSE ps -q rocketchat 2>/dev/null || true)
+GRAFANA_CONTAINER=$($COMPOSE ps -q grafana 2>/dev/null || true)
 
 # Color codes for better UX
 RED='\033[0;31m'
@@ -40,7 +51,7 @@ check_service() {
 # Wait for MongoDB and replica set
 echo -e "${YELLOW}⏳ [1/4] Checking MongoDB and replica set...${NC}"
 for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
-    if docker exec rocketchat-observability-mongo-1 mongosh --eval "
+    if [[ -n "$MONGO_CONTAINER" ]] && $RUNTIME exec "$MONGO_CONTAINER" mongosh --eval "
         try { 
             db.runCommand('ping'); 
             const status = rs.status(); 
@@ -59,7 +70,7 @@ for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
     if [ $i -eq $((TIMEOUT/INTERVAL)) ]; then
         echo -e "    ${RED}❌ MongoDB failed to start within ${TIMEOUT}s${NC}"
         echo -e "    ${YELLOW}🔍 Debug info:${NC}"
-        docker exec rocketchat-observability-mongo-1 mongosh --eval "try { rs.status(); } catch(e) { print('Replica set not initialized'); }" 2>/dev/null || echo "MongoDB not accessible"
+        $RUNTIME exec "$MONGO_CONTAINER" mongosh --eval "try { rs.status(); } catch(e) { print('Replica set not initialized'); }" 2>/dev/null || echo "MongoDB not accessible"
         exit 1
     fi
     sleep $INTERVAL
@@ -69,9 +80,9 @@ done
 echo -e "${YELLOW}⏳ [2/4] Checking Traefik reverse proxy...${NC}"
 for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
     # Check if Traefik container is running and healthy
-    if docker ps --filter "name=rocketchat-observability-traefik-1" --filter "status=running" --format "{{.Names}}" | grep -q "rocketchat-observability-traefik-1"; then
+    if [[ -n "$TRAEFIK_CONTAINER" ]] && $RUNTIME ps --filter "id=$TRAEFIK_CONTAINER" --filter "status=running" -q | grep -q .; then
         # Try to get the actual dashboard port
-        TRAEFIK_PORT=$(docker port rocketchat-observability-traefik-1 8080 2>/dev/null | cut -d: -f2)
+        TRAEFIK_PORT=$($RUNTIME port "$TRAEFIK_CONTAINER" 8080 2>/dev/null | cut -d: -f2)
         if [ -n "$TRAEFIK_PORT" ]; then
             echo -e "    ${BLUE}🔍 Traefik dashboard port detected: $TRAEFIK_PORT${NC}"
             if check_service "Traefik" "http://localhost:$TRAEFIK_PORT/dashboard/" 200; then
@@ -92,11 +103,11 @@ for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
         echo -e "    ${YELLOW}⏳ Traefik container not running yet...${NC}"
     fi
     if [ $i -eq $((TIMEOUT/INTERVAL)) ]; then
-        echo -e "    ${RED}❌ Traefik failed to start within ${TIMEOUT}s${NC}"
-        echo -e "    ${YELLOW}🔍 Debug info:${NC}"
-        echo "       Container status: $(docker ps --filter 'name=rocketchat-observability-traefik-1' --format '{{.Status}}')"
-        echo "       Last logs:"
-        docker logs rocketchat-observability-traefik-1 2>&1 | tail -5
+            echo -e "    ${RED}❌ Traefik failed to start within ${TIMEOUT}s${NC}"
+            echo -e "    ${YELLOW}🔍 Debug info:${NC}"
+            echo "       Container status: $($RUNTIME ps --filter 'id=$TRAEFIK_CONTAINER' --format '{{.Status}}')"
+            echo "       Last logs:"
+            $RUNTIME logs "$TRAEFIK_CONTAINER" 2>&1 | tail -5
         exit 1
     fi
     sleep $INTERVAL
@@ -106,7 +117,7 @@ done
 echo -e "${YELLOW}⏳ [3/4] Checking Rocket.Chat application...${NC}"
 for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
     # Try to get the actual Rocket.Chat port (default 3000)
-    RC_PORT=$(docker port rocketchat-observability-rocketchat-1 3000 2>/dev/null | cut -d: -f2)
+    RC_PORT=$($RUNTIME port "$RC_CONTAINER" 3000 2>/dev/null | cut -d: -f2)
     if [ -n "$RC_PORT" ] && check_service "Rocket.Chat" "http://localhost:$RC_PORT/api/info" 200; then
         echo -e "    ${GREEN}✅ Rocket.Chat is healthy${NC}"
         break
@@ -126,7 +137,7 @@ done
 echo -e "${YELLOW}⏳ [4/4] Checking Grafana monitoring dashboard...${NC}"
 for i in $(seq 1 $((TIMEOUT/INTERVAL))); do
     # Try to get the actual Grafana port (default 5050)
-    GRAFANA_PORT=$(docker port rocketchat-observability-grafana-1 3000 2>/dev/null | cut -d: -f2)
+    GRAFANA_PORT=$($RUNTIME port "$GRAFANA_CONTAINER" 3000 2>/dev/null | cut -d: -f2)
     if [ -n "$GRAFANA_PORT" ] && check_service "Grafana" "http://localhost:$GRAFANA_PORT/api/health" 200; then
         echo -e "    ${GREEN}✅ Grafana is healthy${NC}"
         break
