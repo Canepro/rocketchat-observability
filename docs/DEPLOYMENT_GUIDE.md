@@ -12,9 +12,9 @@ git clone <your-repo-url>
 cd rocketchat-observability
 
 # 2. Start the demo stack (one-command setup)
-./start.sh
+./start.sh   # runs requirements check and delegates to Makefile
 
-# Or use the Makefile
+# Or use the Makefile directly
 make demo-up
 ```
 

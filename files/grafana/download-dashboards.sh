@@ -16,7 +16,10 @@ download_dashboard() {
   echo "$dest"
   if [ ! -f "$dest" ]; then
     echo "Downloading $url -> $dest"
-    curl -SsL -o "$dest" "$url"
+    if ! curl -fsSL -o "$dest" "$url"; then
+      echo "Failed to download $url" >&2
+      exit 1
+    fi
     # Normalize datasource names and default time range to 1h
     sed -i 's/${DS_PROMETHEUS}/DS_PROMETHEUS/g' "$dest"
     sed -i 's/${DS}/DS_PROMETHEUS/g' "$dest"
