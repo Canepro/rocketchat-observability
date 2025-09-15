@@ -100,6 +100,93 @@ chmod +x k8s/deploy.sh
 chmod +x scripts/*.sh
 ```
 
+### 🚨 MongoDB Deployment Timeout Issues
+**Symptoms:**
+```bash
+[INFO] Waiting for MongoDB to be ready...
+error: timed out waiting for the condition on deployments/rocketchat-mongodb
+```
+
+**Root Cause:**
+MongoDB pod is taking too long to become ready, or failing to start properly.
+
+**Immediate Diagnosis:**
+```bash
+# Check MongoDB pod status
+kubectl get pods -l app=mongodb
+
+# Check pod details and events
+kubectl describe pod $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
+
+# Check MongoDB logs
+kubectl logs -l app=mongodb --tail=50
+
+# Check if MongoDB is actually running
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- mongo --eval "db.stats()"
+```
+
+**Common Solutions:**
+
+#### 1. Resource Constraints
+```bash
+# Check node resources
+kubectl describe nodes
+
+# Check if MongoDB pod has resource issues
+kubectl describe pod $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
+
+# Scale down MongoDB resources if needed
+kubectl edit deployment rocketchat-mongodb
+# Change resources.requests and resources.limits
+```
+
+#### 2. MongoDB Startup Issues
+```bash
+# Check MongoDB logs for errors
+kubectl logs -l app=mongodb -f
+
+# Common issues:
+# - Insufficient memory
+# - Storage issues
+# - Authentication problems
+```
+
+#### 3. Extend Timeout and Retry
+```bash
+# The deployment script has a 5-minute timeout
+# You can wait longer manually:
+kubectl wait --for=condition=available --timeout=600s deployment/rocketchat-mongodb
+
+# Or check if it's actually ready
+kubectl get pods -l app=mongodb
+```
+
+#### 4. Clean Restart
+```bash
+# Delete and redeploy MongoDB
+kubectl delete deployment rocketchat-mongodb
+kubectl delete service rocketchat-mongodb
+
+# Wait a moment
+sleep 10
+
+# Redeploy
+kubectl apply -f mongodb-deployment.yaml
+kubectl apply -f mongodb-init-job.yaml
+
+# Wait for readiness
+kubectl wait --for=condition=available --timeout=300s deployment/rocketchat-mongodb
+```
+
+#### 5. Check MongoDB Configuration
+```bash
+# Verify MongoDB environment variables
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- env | grep MONGO
+
+# Check if MongoDB is listening on correct port
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- netstat -tlnp | grep 27017
+```
+
 ```bash
 # Both issues resolved:
 # 1. Helm: Remove snap, manual install
