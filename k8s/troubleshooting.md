@@ -401,11 +401,22 @@ k3s kubeconfig file has incorrect permissions for the regular user.
 ls -la ~/.kube/config
 ls -la /etc/rancher/k3s/k3s.yaml
 
-# Fix permissions (run as your regular user)
+# Fix the SOURCE kubeconfig file permissions
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+sudo chown root:root /etc/rancher/k3s/k3s.yaml
+
+# Copy kubeconfig with correct permissions for user
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown $(id -u):$(id -g) ~/.kube/config
 sudo chmod 600 ~/.kube/config
 
-# Alternative: Copy kubeconfig with correct permissions
+# Alternative: Regenerate kubeconfig with proper permissions
+sudo -i
+k3s kubectl config view --raw > /etc/rancher/k3s/k3s.yaml
+chmod 644 /etc/rancher/k3s/k3s.yaml
+exit
+
+# Copy to user home
 sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown $(id -u):$(id -g) ~/.kube/config
 
