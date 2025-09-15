@@ -196,7 +196,7 @@ error: timed out waiting for the condition on jobs/rocketchat-mongodb-init
 ```
 
 **Root Cause:**
-MongoDB init job exists from previous deployment and hasn't completed successfully.
+MongoDB init job exists from previous deployment and hasn't completed successfully due to using wrong MongoDB client (`mongo` instead of `mongosh`).
 
 **Immediate Diagnosis:**
 ```bash
@@ -204,8 +204,7 @@ MongoDB init job exists from previous deployment and hasn't completed successful
 kubectl get jobs
 kubectl describe job rocketchat-mongodb-init
 
-# Check job pods
-kubectl get pods -l job-name=rocketchat-mongodb-init
+# Check job logs (shows infinite "Waiting for MongoDB..." loop)
 kubectl logs $(kubectl get pods -l job-name=rocketchat-mongodb-init -o jsonpath='{.items[0].metadata.name}')
 
 # Check if replica set is already initialized
@@ -214,18 +213,22 @@ kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.
 
 **Solutions:**
 
-#### Option 1: Clean Restart Init Job
+#### Option 1: Clean Restart Init Job (RECOMMENDED)
 ```bash
-# Delete the existing job
+# Delete the existing broken job
 kubectl delete job rocketchat-mongodb-init
 
 # Wait a moment
 sleep 5
 
-# Redeploy the init job
-kubectl apply -f mongodb-init-job.yaml
+# Pull latest fixes (includes corrected MongoDB client paths)
+cd ~/rocketchat-observability
+git pull origin true-one-click
 
-# Wait for completion
+# Redeploy the fixed init job
+kubectl apply -f k8s/mongodb-init-job.yaml
+
+# Wait for completion (should be quick now)
 kubectl wait --for=condition=complete --timeout=60s job/rocketchat-mongodb-init
 ```
 

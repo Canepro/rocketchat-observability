@@ -17,7 +17,7 @@ spec:
         - -c
         - |
           # Wait for MongoDB to be ready
-          until mongo --host rocketchat-mongodb --username root --password rocketchat123 --authenticationDatabase admin --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+          until /opt/bitnami/mongodb/bin/mongosh --host rocketchat-mongodb --username root --password rocketchat123 --authenticationDatabase admin --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             echo "Waiting for MongoDB..."
             sleep 2
           done
@@ -25,7 +25,7 @@ spec:
           echo "MongoDB is ready. Initializing replica set..."
 
           # Initialize replica set
-          mongo --host rocketchat-mongodb --username root --password rocketchat123 --authenticationDatabase admin --eval "
+          /opt/bitnami/mongodb/bin/mongosh --host rocketchat-mongodb --username root --password rocketchat123 --authenticationDatabase admin --eval "
             rs.initiate({
               _id: 'rs0',
               members: [
