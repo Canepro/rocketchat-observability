@@ -187,7 +187,88 @@ kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.
 kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- netstat -tlnp | grep 27017
 ```
 
-#### 6. Fix MongoDB Health Probe Issues (Bitnami Image)
+#### 10. MongoDB Init Job Timeout Issues
+**Symptoms:**
+```bash
+[INFO] Initializing MongoDB replica set...
+job.batch/rocketchat-mongodb-init unchanged
+error: timed out waiting for the condition on jobs/rocketchat-mongodb-init
+```
+
+**Root Cause:**
+MongoDB init job exists from previous deployment and hasn't completed successfully.
+
+**Immediate Diagnosis:**
+```bash
+# Check job status
+kubectl get jobs
+kubectl describe job rocketchat-mongodb-init
+
+# Check job pods
+kubectl get pods -l job-name=rocketchat-mongodb-init
+kubectl logs $(kubectl get pods -l job-name=rocketchat-mongodb-init -o jsonpath='{.items[0].metadata.name}')
+
+# Check if replica set is already initialized
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --eval "rs.status()"
+```
+
+**Solutions:**
+
+#### Option 1: Clean Restart Init Job
+```bash
+# Delete the existing job
+kubectl delete job rocketchat-mongodb-init
+
+# Wait a moment
+sleep 5
+
+# Redeploy the init job
+kubectl apply -f mongodb-init-job.yaml
+
+# Wait for completion
+kubectl wait --for=condition=complete --timeout=60s job/rocketchat-mongodb-init
+```
+
+#### Option 2: Check if Replica Set Already Exists
+```bash
+# Connect to MongoDB and check status
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --eval "rs.status()"
+
+# If replica set exists, you can skip the init job
+# The deployment should continue without the init job
+```
+
+#### Option 3: Manual Replica Set Initialization
+```bash
+# Connect to MongoDB manually
+kubectl exec -it $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh
+
+# Run replica set initialization
+rs.initiate({
+  _id: 'rs0',
+  members: [
+    {
+      _id: 0,
+      host: 'rocketchat-mongodb:27017'
+    }
+  ]
+});
+
+# Exit and check status
+rs.status()
+```
+
+#### Option 4: Force Continue Deployment
+```bash
+# If replica set is already initialized, continue manually
+kubectl apply -f configmap.yaml
+kubectl apply -f rocketchat-deployment.yaml
+kubectl apply -f rocketchat-service.yaml
+kubectl apply -f nginx-ingress.yaml
+kubectl apply -f poddisruptionbudget.yaml
+```
+
+#### 11. Fix MongoDB Health Probe Issues (Bitnami Image)
 ```bash
 # The issue: Bitnami MongoDB image doesn't have 'mongo' client in PATH
 # Solution: Update the deployment with correct MongoDB client path
