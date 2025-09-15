@@ -804,34 +804,42 @@ kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.
 3. ✅ **Nginx Ingress** - Removed configuration-snippet, fixed host validation
 4. ✅ **MongoDB Health Probes** - Fixed client path (`mongo` → `/opt/bitnami/mongodb/bin/mongosh`)
 5. ✅ **MongoDB Init Job** - Fixed client path for replica set initialization
-6. ✅ **Pod Anti-Affinity** - Changed from required to preferred for single-node
+6. ✅ **Pod Anti-Affinity** - REMOVED entirely for 2-pod testing on single node
 7. ✅ **MongoDB Replication** - Added replica set configuration environment variables
 8. ✅ **ReplicaSet Cleanup** - Removed old ReplicaSets causing persistent pending pods
-9. ✅ **Rocket.Chat Running** - Successfully deployed and accessible
+9. ✅ **2-Pod Deployment** - Successfully running 2 Rocket.Chat instances
+10. ✅ **Load Balancing** - Hash-based routing configured via Nginx Ingress
 
 ### Final Deployment Status:
 ```bash
 # MongoDB: Running with replica set enabled
 kubectl get pods -l app=mongodb
-# rocketchat-mongodb-xxx   1/1     Running   0          45m
+# rocketchat-mongodb-xxx   1/1     Running   0          50m
 
-# Rocket.Chat: 1 pod running (scaled to 1 for single-node cluster)
-kubectl get pods -l app=rocketchat
-# rocketchat-xxx-yyy   1/1     Running   0          3m
+# Rocket.Chat: 2 pods running (anti-affinity removed for single-node)
+kubectl get pods -l app=rocketchat -o wide
+# NAME                          READY   STATUS    RESTARTS   AGE     IP           NODE
+# rocketchat-7bc55f5795-66dbt   1/1     Running   0          15m     10.42.0.20   myvm
+# rocketchat-7bc55f5795-n645p   1/1     Running   0          4m      10.42.0.21   myvm
 
-# Ingress: Configured and routing traffic
+# Ingress: Configured with hash-based load balancing
 kubectl get ingress
-# rocketchat-ingress   nginx   *   52.183.221.89   80   60m
+# rocketchat-ingress   nginx   *   52.183.221.89   80   65m
 
-# API Health Check
-curl http://52.183.221.89/api/info
-# Returns: {"version":"7.9.3","success":true}
+# API Health Check - Both pods operational
+curl -s http://52.183.221.89/api/info | jq -r '.success'
+# Returns: true
+
+# Instance IDs (different for each pod)
+# Pod 1: 646c00b4-e775-485a-816c-72347b6e9a44
+# Pod 2: 324957db-dce5-4644-a9aa-ec0a5db3dec7
 ```
 
 ### Access Information:
 - **URL:** http://52.183.221.89
+- **Pods:** 2 instances with load balancing
 - **Admin:** Existing admin user (ADMIN_PASS ignored)
-- **Status:** ✅ FULLY OPERATIONAL
+- **Status:** ✅ FULLY OPERATIONAL WITH 2 PODS
 
 ### 17. Persistent Pending Pods After Scaling
 **Symptoms:**
@@ -910,11 +918,89 @@ kubectl delete rs -l app=rocketchat --field-selector status.replicas=0
 
 **Verification:**
 ```bash
-# Should show only one ReplicaSet with DESIRED=1
+# Should show only one ReplicaSet with DESIRED=2
 kubectl get rs -l app=rocketchat
+# NAME                    DESIRED   CURRENT   READY   AGE
+# rocketchat-7bc55f5795   2         2         2       10m
 
-# Should show only one running pod
+# Should show 2 running pods
 kubectl get pods -l app=rocketchat
+# NAME                          READY   STATUS    RESTARTS   AGE
+# rocketchat-7bc55f5795-66dbt   1/1     Running   0          15m
+# rocketchat-7bc55f5795-n645p   1/1     Running   0          4m
+```
+
+### 18. Old ReplicaSet Creating Persistent Pending Pods ⚠️ ONGOING ISSUE
+**Symptoms:**
+```bash
+kubectl get pods -l app=rocketchat
+# NAME                          READY   STATUS    RESTARTS   AGE
+# rocketchat-75b8d4f968-4kplt   0/1     Pending   0          2m    # ← Old ReplicaSet
+# rocketchat-7bc55f5795-66dbt   1/1     Running   0          15m   # ← Current (working)
+# rocketchat-7bc55f5795-n645p   1/1     Running   0          4m    # ← Current (working)
+
+kubectl get rs -l app=rocketchat
+# NAME                    DESIRED   CURRENT   READY   AGE
+# rocketchat-75b8d4f968   1         1         0       10m   # ← Old ReplicaSet with anti-affinity
+# rocketchat-7bc55f5795   2         2         2       5m    # ← Current ReplicaSet without anti-affinity
+```
+
+**Root Cause:**
+Old ReplicaSet from when deployment had anti-affinity enabled still exists and tries to maintain its desired replica count.
+
+**Solutions:**
+
+#### Solution 1: Delete Old ReplicaSet (Quick Fix)
+```bash
+# Delete the old ReplicaSet
+kubectl delete rs rocketchat-75b8d4f968
+
+# Verify only current ReplicaSet remains
+kubectl get rs -l app=rocketchat
+```
+
+#### Solution 2: Clean Deployment Recreation (Permanent Fix)
+```bash
+# Save current deployment
+kubectl get deployment rocketchat -o yaml > rocketchat-backup.yaml
+
+# Delete deployment completely
+kubectl delete deployment rocketchat
+
+# Delete ALL ReplicaSets
+kubectl delete rs -l app=rocketchat --all
+
+# Recreate from clean YAML
+kubectl apply -f rocketchat-deployment.yaml
+
+# Scale to 2 pods
+kubectl scale deployment rocketchat --replicas=2
+
+# Verify clean state
+kubectl get rs -l app=rocketchat
+kubectl get pods -l app=rocketchat
+```
+
+#### Solution 3: Force Rollout Restart
+```bash
+# Force deployment to create new ReplicaSet
+kubectl rollout restart deployment rocketchat
+
+# Delete old ReplicaSets after rollout
+kubectl delete rs $(kubectl get rs -l app=rocketchat -o jsonpath='{.items[?(@.status.replicas==0)].metadata.name}')
+```
+
+**Expected Result After Fix:**
+```bash
+kubectl get rs -l app=rocketchat
+# NAME                    DESIRED   CURRENT   READY   AGE
+# rocketchat-7bc55f5795   2         2         2       2m    # Only one ReplicaSet
+
+kubectl get pods -l app=rocketchat
+# NAME                          READY   STATUS    RESTARTS   AGE
+# rocketchat-7bc55f5795-66dbt   1/1     Running   0          2m
+# rocketchat-7bc55f5795-n645p   1/1     Running   0          2m
+# No pending pods from old ReplicaSet
 ```
 
 **Verification:**
