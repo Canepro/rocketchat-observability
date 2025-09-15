@@ -4,6 +4,163 @@
 
 This guide helps troubleshoot common issues when deploying Rocket.Chat with 2 pods on your Azure VM Kubernetes cluster.
 
+## Azure VM Setup Issues
+
+### 1. Helm Installation Fails
+
+**Symptoms:**
+```bash
+curl https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm.tar.gz
+tar -zxvf helm.tar.gz
+# Error: gzip: stdin: not in gzip format
+# Error: tar: Child returned status 1
+# Error: mv: cannot stat 'linux-amd64/helm': No such file or directory
+```
+
+**Root Cause:**
+The Helm download failed or the file was corrupted, resulting in a small HTML file instead of the expected tar.gz archive.
+
+**Solutions:**
+
+#### Option 1: Retry Download with Better Error Handling
+```bash
+# Remove the corrupted file
+rm -f helm.tar.gz
+
+# Download with retry and verification
+curl -L --retry 3 --retry-delay 5 https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm.tar.gz
+
+# Verify file size (should be around 17MB)
+ls -lh helm.tar.gz
+
+# Extract and install
+tar -zxvf helm.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/helm
+rm -rf linux-amd64 helm.tar.gz
+
+# Verify installation
+helm version
+```
+
+#### Option 2: Use Snap Package (Ubuntu/Debian)
+```bash
+# Install Helm via snap
+sudo snap install helm --classic
+
+# Verify installation
+helm version
+```
+
+#### Option 3: Use Apt Package Manager
+```bash
+# Add Helm repository
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+
+# Update and install
+sudo apt update
+sudo apt install helm
+
+# Verify installation
+helm version
+```
+
+#### Option 4: Manual Binary Download
+```bash
+# Download latest version directly
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+
+# Or use a different mirror
+curl -O https://mirrors.huaweicloud.com/helm/v3.13.0/helm-v3.13.0-linux-amd64.tar.gz
+
+# Extract and install
+tar -zxvf helm-v3.13.0-linux-amd64.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/helm
+sudo chmod +x /usr/local/bin/helm
+
+# Verify installation
+helm version
+```
+
+### 2. Docker Group Membership Not Applied
+
+**Symptoms:**
+```bash
+docker version
+# Error: Got permission denied while trying to connect to the Docker daemon socket
+```
+
+**Root Cause:**
+After adding user to docker group, you need to log out and log back in, or start a new shell session.
+
+**Solution:**
+```bash
+# Option 1: Start new shell session
+newgrp docker
+
+# Option 2: Log out and log back in
+# Close terminal and open new one
+
+# Option 3: Restart your SSH session
+exit
+# Then reconnect via SSH
+
+# Verify Docker access
+docker version
+docker run hello-world
+```
+
+### 3. k3s Not Starting Properly
+
+**Symptoms:**
+```bash
+sudo systemctl status k3s
+# Shows failed or inactive status
+```
+
+**Solutions:**
+```bash
+# Check k3s logs
+sudo journalctl -u k3s -f
+
+# Restart k3s service
+sudo systemctl restart k3s
+
+# Check if k3s is running
+sudo systemctl status k3s
+
+# Verify kubectl access
+kubectl cluster-info
+kubectl get nodes
+```
+
+### 4. kubectl Configuration Issues
+
+**Symptoms:**
+```bash
+kubectl cluster-info
+# Error: The connection to the server localhost:8080 was refused
+```
+
+**Solution:**
+```bash
+# Check if k3s is running
+sudo systemctl status k3s
+
+# Verify kubeconfig file
+ls -la ~/.kube/config
+
+# Check file permissions
+ls -la /etc/rancher/k3s/k3s.yaml
+
+# Re-copy kubeconfig if needed
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $(id -u):$(id -g) ~/.kube/config
+
+# Test connection
+kubectl cluster-info
+```
+
 ## Quick Status Check
 
 Use the deployment script for quick diagnostics:
