@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rocketchat-mongodb-init
+  namespace: default
+  labels:
+    app: mongodb-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: mongodb-init
+        image: docker.io/bitnami/mongodb:7.0
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Wait for MongoDB to be ready
+          until mongo --host rocketchat-mongodb --username root --password rocketchat123 --authenticationDatabase admin --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+            echo "Waiting for MongoDB..."
+            sleep 2
+          done
+
+          echo "MongoDB is ready. Initializing replica set..."
+
+          # Initialize replica set
+          mongo --host rocketchat-mongodb --username root --password rocketchat123 --authenticationDatabase admin --eval "
+            rs.initiate({
+              _id: 'rs0',
+              members: [
+                {
+                  _id: 0,
+                  host: 'rocketchat-mongodb:27017'
+                }
+              ]
+            });
+          "
+
+          echo "Replica set initialized successfully"
+        env:
+        - name: MONGODB_ROOT_PASSWORD
+          value: "rocketchat123"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: rocketchat
+description: Rocket.Chat Kubernetes deployment with 2 pods (monolithic mode)
+type: application
+version: 0.1.0
+appVersion: "7.9.3"
+keywords:
+  - rocketchat
+  - chat
+  - collaboration
+  - kubernetes
+home: https://rocket.chat
+sources:
+  - https://github.com/RocketChat/Rocket.Chat
+maintainers:
+  - name: Test Deployment
+    email: test@example.com

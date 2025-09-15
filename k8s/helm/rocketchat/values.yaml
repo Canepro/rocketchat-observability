@@ -1,0 +1,97 @@
+# Default values for Rocket.Chat Helm chart
+# Based on customer's production values.yaml
+
+image:
+  repository: rocketchat/rocket.chat
+  tag: "7.9.3"
+  pullPolicy: IfNotPresent
+
+# Deployment configuration
+replicaCount: 2  # Testing with 2 pods
+minAvailable: 1
+
+# Pod anti-affinity
+podAntiAffinity: "hard"
+podAntiAffinityTopologyKey: kubernetes.io/hostname
+
+# External MongoDB (not deployed by this chart)
+externalMongodb:
+  url: "mongodb://host.docker.internal:27017/rocketchat"
+  oplogUrl: "mongodb://host.docker.internal:27017/local"
+
+# Rocket.Chat configuration
+rocketchat:
+  rootUrl: "http://52.183.221.89"
+  adminUsername: "admin"
+  adminPassword: "changeme123"
+  adminEmail: "admin@example.com"
+
+# Resource limits (from customer's values)
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+
+# Security context
+securityContext:
+  enabled: true
+  runAsUser: 999
+  runAsGroup: 999
+  fsGroup: 999
+
+# Service account
+serviceAccount:
+  create: true
+  name: rocketchat-sa
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$$request_uri$$host"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  hosts:
+    - host: "52.183.221.89"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: rocketchat-tls
+  #    hosts:
+  #      - 52.183.221.89
+
+# Health probes
+livenessProbe:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Node selector, tolerations, affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -19,7 +19,6 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
   - [✨ Highlights](#-highlights)
   - [🚀 Quick Start](#-quick-start)
     - [Local Development](#local-development)
-    - [Azure VM Production Deployment](#azure-vm-production-deployment)
   - [Engine-agnostic design](#engine-agnostic-design)
   - [Files overview](#files-overview)
   - [Configuration (.env)](#configuration-env)
@@ -57,18 +56,10 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
 
 ### Demo Mode (One-Click Setup)
 
-For immediate testing and development:
+For immediate testing and development, use the true one-click script:
 
 ```bash
-# 1. Clone the repository
-git clone <your-repo-url>
-cd rocketchat-observability
-
-# 2. Start the demo stack (no configuration needed)
-./start.sh
-
-# Or use the Makefile
-make demo-up
+curl -fsSL https://raw.githubusercontent.com/Canepro/rocketchat-observability/true-one-click/one-click-demo.sh | bash
 ```
 
 **Demo Features:**
@@ -86,20 +77,10 @@ make demo-up
 
 ### Production Deployment
 
-For production deployments, see the comprehensive **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)**.
+For production, use the interactive one-click script, or see the comprehensive **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)**.
 
-**Quick Production Setup:**
 ```bash
-# 1. Clone and configure
-git clone <your-repo-url>
-cd rocketchat-observability
-cp env.example .env
-
-# 2. Edit .env with your production values
-nano .env
-
-# 3. Deploy production stack
-make prod-up
+curl -fsSL https://raw.githubusercontent.com/Canepro/rocketchat-observability/true-one-click/one-click-prod.sh | bash
 ```
 
 **Production Prerequisites:**
@@ -162,36 +143,7 @@ curl -I http://YOUR_SERVER_IP
 
 ---
 
-## 🌐 Deploy to Azure Container Apps (ACA)
-
-A production-ready, single-region ACA deployment is included. It uses a single public ingress on `rocketchat` and keeps `grafana` internal (served via `/grafana` path).
-
-### Prerequisites
-- Azure CLI logged in on a machine that can access your subscription
-- Resource group: `Rocketchat_RG` (existing is fine)
-
-### One-command deploy
-```bash
-# From repo root
-export GRAFANA_ADMIN_PASSWORD='<YOUR_GRAFANA_ADMIN_PASSWORD>'
-./azure/deploy-aca.sh
-```
-This will:
-- Deploy `azure/main.bicep` to `uksouth`
-- Create/resolve ACR and import required images
-- Run the one-time MongoDB init Job
-- Try to add the `/grafana` route to the internal Grafana app
-- Print the public FQDN for Rocket.Chat
-
-### DNS (Cloudflare)
-- Create a CNAME: `chat.canepro.me` → printed ACA FQDN (orange-cloud/proxied OK)
-
-### Notes
-- Path-based routing lives on the `rocketchat` app. If your CLI doesn’t support HTTP routes yet, add the route in Azure Portal after deploy.
-- Grafana’s admin password is stored as an ACA secret.
-- Node Exporter is intentionally omitted (not applicable to serverless).
-
----
+ 
 
 **To stop:**
 ```bash

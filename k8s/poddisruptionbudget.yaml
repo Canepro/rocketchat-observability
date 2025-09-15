@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rocketchat-pdb
+  namespace: default
+  labels:
+    app: rocketchat
+    component: chat
+spec:
+  minAvailable: 1  # From your values.yaml
+  selector:
+    matchLabels:
+      app: rocketchat
+      component: chat

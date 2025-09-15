@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rocketchat-ingress
+  namespace: default
+  annotations:
+    # Hash-based load balancing (from your values.yaml)
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$$request_uri$$host"
+    # Allow large file uploads
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/proxy-set-headers: |
+      X-Forwarded-Host $host,
+      X-Forwarded-Port $server_port,
+      X-Forwarded-Proto $scheme,
+      X-Real-IP $remote_addr,
+      X-Forwarded-For $proxy_add_x_forwarded_for,
+      X-Nginx-Proxy true
+    # Connection upgrade for WebSocket
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_buffering off;
+      proxy_request_buffering off;
+      proxy_redirect off;
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "52.183.221.89"  # Your VM public IP
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rocketchat-service
+            port:
+              number: 80
+  # Default rule for IP access
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rocketchat-service
+            port:
+              number: 80

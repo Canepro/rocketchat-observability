@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Rocket.Chat Observability - TRUE ONE-CLICK PRODUCTION
 # Interactive setup script for production deployment
 
@@ -31,81 +32,56 @@ echo "🚀 Rocket.Chat Observability - TRUE ONE-CLICK PRODUCTION"
 echo "======================================================="
 echo ""
 
-# Get the repository URL
-REPO_URL="https://github.com/Canepro/rocketchat-observability.git"
-
-# Check if we're already in the repository
-if [ -f "compose.yml" ]; then
-    print_status "Already in repository directory"
-else
+# If this script was piped via curl, we might not be in the repo dir
+if [ ! -f "compose.yml" ]; then
     print_status "Cloning repository..."
-    # Create a temporary directory
-    TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-    
-    # Clone the repository
-    git clone "$REPO_URL" rocketchat-observability
+    TMP_DIR=$(mktemp -d)
+    cd "$TMP_DIR"
+    git clone https://github.com/Canepro/rocketchat-observability.git rocketchat-observability
     cd rocketchat-observability
-    print_success "Repository cloned successfully"
-fi
-
-# Check if Docker/Podman is available
-if ! command -v docker &> /dev/null && ! command -v podman &> /dev/null; then
-    print_error "Neither Docker nor Podman found."
-    echo ""
-    echo "Please install Docker or Podman first:"
-    echo "  Docker: https://docs.docker.com/get-docker/"
-    echo "  Podman: https://podman.io/getting-started/installation"
-    echo ""
-    echo "After installation, run this script again."
-    exit 1
+    print_success "Repository cloned"
 fi
 
 # Detect container runtime
-if command -v docker &> /dev/null; then
-    if docker compose version &> /dev/null; then
+if command -v docker >/dev/null 2>&1; then
+    if docker compose version >/dev/null 2>&1; then
         COMPOSE="docker compose"
-        print_success "Using Docker Compose"
-    elif command -v docker-compose &> /dev/null; then
+    elif command -v docker-compose >/dev/null 2>&1; then
         COMPOSE="docker-compose"
-        print_success "Using Docker Compose (legacy)"
     else
-        print_error "Docker found but docker compose is not available."
-        print_error "Please install Docker Compose or update Docker Desktop."
+        print_error "Docker found but Compose is missing. Install Docker Compose."
         exit 1
     fi
-elif command -v podman &> /dev/null; then
-    if podman compose version &> /dev/null; then
+elif command -v podman >/dev/null 2>&1; then
+    if podman compose version >/dev/null 2>&1; then
         COMPOSE="podman compose"
-        print_success "Using Podman Compose"
     else
-        print_error "Podman found but podman compose is not available."
-        print_error "Please install podman-compose."
+        print_error "Podman found but podman compose is missing. Install podman-compose."
         exit 1
     fi
+else
+    print_error "Neither Docker nor Podman found. Install one and retry."
+    exit 1
 fi
+print_success "Using: $COMPOSE"
 
-# Interactive configuration
 echo ""
 echo "🔧 Production Configuration"
 echo "=========================="
 echo ""
 
-# Get domain
 read -p "Enter your domain name (e.g., chat.yourdomain.com): " DOMAIN
 if [ -z "$DOMAIN" ]; then
     print_error "Domain name is required for production deployment"
     exit 1
 fi
 
-# Get email for Let's Encrypt
 read -p "Enter your email for SSL certificates: " EMAIL
 if [ -z "$EMAIL" ]; then
     print_error "Email is required for Let's Encrypt certificates"
     exit 1
 fi
 
-# Get Grafana admin password
 read -s -p "Enter Grafana admin password: " GRAFANA_PASSWORD
 echo ""
 if [ -z "$GRAFANA_PASSWORD" ]; then
@@ -113,7 +89,6 @@ if [ -z "$GRAFANA_PASSWORD" ]; then
     print_warning "Using default Grafana password: rc-admin-prod"
 fi
 
-# Get MongoDB root password
 read -s -p "Enter MongoDB root password: " MONGO_PASSWORD
 echo ""
 if [ -z "$MONGO_PASSWORD" ]; then
@@ -121,11 +96,9 @@ if [ -z "$MONGO_PASSWORD" ]; then
     print_warning "Generated MongoDB password automatically"
 fi
 
-# Setup environment file
 print_status "Setting up production environment..."
 cp env.example .env
 
-# Update .env with production values
 sed -i "s/DOMAIN=.*/DOMAIN=$DOMAIN/" .env
 sed -i "s|ROOT_URL=.*|ROOT_URL=https://$DOMAIN|" .env
 sed -i "s/GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=$GRAFANA_PASSWORD/" .env
@@ -137,30 +110,21 @@ sed -i "s/LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=$EMAIL/" .env
 
 print_success "Production environment configured"
 
-# Check if ports are open
 echo ""
-print_status "Checking if required ports are open..."
-echo "Make sure ports 80, 443, 3000, 5050, 9090, 8080 are open on your firewall"
-echo "See docs/DEPLOYMENT_GUIDE.md for detailed port configuration"
+print_status "Ensure ports 80, 443, 3000, 5050, 9090, 8080 are open (inbound)."
+echo "See docs/DEPLOYMENT_GUIDE.md for details."
 echo ""
+read -p "Press Enter to continue with deployment..." _
 
-read -p "Press Enter to continue with deployment..."
-
-# Start the production stack
 print_status "Starting Rocket.Chat Observability Production Stack..."
-print_status "This may take 3-5 minutes on first run..."
-
-# Use production overlay
 $COMPOSE -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.prod.yml -f compose.nats-exporter.yml up -d
 
-print_success "Production stack started successfully!"
+print_success "Production stack started"
 
-# Wait for services to be ready
 print_status "Waiting for services to become ready..."
 sleep 20
 
-# Show service status
-print_status "Checking service status..."
+print_status "Service status:"
 $COMPOSE -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml -f compose.prod.yml -f compose.nats-exporter.yml ps
 
 echo ""
@@ -187,4 +151,5 @@ echo ""
 print_warning "First startup may take a few minutes. SSL certificates will be generated automatically."
 echo ""
 echo "🚀 Your production Rocket.Chat observability stack is ready!"
+
 

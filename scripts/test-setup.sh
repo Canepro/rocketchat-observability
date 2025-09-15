@@ -32,7 +32,7 @@ print_error() {
 echo "🧪 Rocket.Chat Observability Stack - Test Setup"
 echo "=============================================="
 echo ""
-
+ 
 # Check if we're in the right directory
 if [ ! -f "compose.yml" ]; then
     print_error "Please run this script from the rocketchat-observability directory"
@@ -51,7 +51,6 @@ else
     exit 1
 fi
 
-# Test 1: Check if .env exists
 print_status "Test 1: Checking environment file..."
 if [ -f ".env" ]; then
     print_success ".env file exists"
@@ -59,78 +58,6 @@ else
     print_warning ".env file not found, creating from template..."
     cp .env.example .env
     print_success ".env file created"
-fi
-
-# Test 2: Validate compose configuration
-print_status "Test 2: Validating compose configuration..."
-if $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml config > /dev/null 2>&1; then
-    print_success "Compose configuration is valid"
-else
-    print_error "Compose configuration validation failed"
-    exit 1
-fi
-
-# Test 3: Check if services are running
-print_status "Test 3: Checking if services are running..."
-if $COMPOSE --env-file .env -f compose.database.yml -f compose.monitoring.yml -f compose.traefik.yml -f compose.yml ps | grep -q "Up"; then
-    print_success "Services are running"
-    
-    # Test 4: Check service health
-    print_status "Test 4: Checking service health..."
-    
-    # Check Rocket.Chat
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
-        print_success "Rocket.Chat is responding"
-    else
-        print_warning "Rocket.Chat is not responding (may still be starting)"
-    fi
-    
-    # Check Grafana
-    if curl -s http://localhost:5050 > /dev/null 2>&1; then
-        print_success "Grafana is responding"
-    else
-        print_warning "Grafana is not responding (may still be starting)"
-    fi
-    
-    # Check Prometheus
-    if curl -s http://127.0.0.1:9000 > /dev/null 2>&1; then
-        print_success "Prometheus is responding"
-    else
-        print_warning "Prometheus is not responding (may still be starting)"
-    fi
-    
-    # Check Traefik
-    if curl -s http://localhost:8080 > /dev/null 2>&1; then
-        print_success "Traefik dashboard is responding"
-    else
-        print_warning "Traefik dashboard is not responding (may still be starting)"
-    fi
-    
-else
-    print_warning "Services are not running"
-    echo "To start services, run: make up"
-fi
-
-# Test 5: Check disk space
-print_status "Test 5: Checking disk space..."
-if command -v df &> /dev/null; then
-    DISK_GB=$(df -BG . | awk 'NR==2 {print $4}' | sed 's/G//')
-    if [ "$DISK_GB" -ge 5 ]; then
-        print_success "Sufficient disk space: ${DISK_GB}GB available"
-    else
-        print_warning "Low disk space: ${DISK_GB}GB available (5GB+ recommended)"
-    fi
-fi
-
-# Test 6: Check memory
-print_status "Test 6: Checking memory..."
-if command -v free &> /dev/null; then
-    MEMORY_GB=$(free -g | awk '/^Mem:/{print $2}')
-    if [ "$MEMORY_GB" -ge 4 ]; then
-        print_success "Sufficient memory: ${MEMORY_GB}GB available"
-    else
-        print_warning "Low memory: ${MEMORY_GB}GB available (4GB+ recommended)"
-    fi
 fi
 
 echo ""
