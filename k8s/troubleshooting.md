@@ -341,6 +341,141 @@ ls -la ~
 cd ~/rocketchat-observability/k8s
 ```
 
+### 11. Ingress Host Validation Issues
+**Symptoms:**
+```bash
+kubectl apply -f nginx-ingress.yaml
+# The Ingress "rocketchat-ingress" is invalid: spec.rules[0].host: Invalid value: "52.183.221.89": must be a DNS name, not an IP address
+```
+
+**Root Cause:**
+Kubernetes ingress requires DNS names, not IP addresses in the host field.
+
+**Solutions:**
+
+#### Option 1: Remove Host Specification (Use Default Routing)
+```bash
+# Edit the ingress to remove the host field
+kubectl edit ingress rocketchat-ingress
+
+# Remove the host line:
+# spec:
+#   rules:
+#   - host: "52.183.221.89"  # Remove this line
+#     http:
+
+# Or use this YAML:
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rocketchat-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$$request_uri$$host"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:  # No host specified - uses default routing
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rocketchat-service
+            port:
+              number: 80
+```
+
+#### Option 2: Use a DNS Name
+```bash
+# Use a proper DNS name instead of IP
+# Edit nginx-ingress.yaml and change:
+# - host: "52.183.221.89"
+# To:
+# - host: "rocketchat.local"  # or your actual domain
+
+# Then update your /etc/hosts or DNS
+echo "52.183.221.89 rocketchat.local" >> /etc/hosts
+```
+
+#### Option 3: Use IP-Based Routing (Advanced)
+```bash
+# For IP-based access, you can use this annotation
+kubectl edit ingress rocketchat-ingress
+
+# Add annotation:
+# nginx.ingress.kubernetes.io/use-regex: "true"
+# nginx.ingress.kubernetes.io/rewrite-target: /
+```
+
+### 12. Rocket.Chat Pod Startup Issues
+**Symptoms:**
+```bash
+kubectl get pods -l app=rocketchat
+# NAME                     READY   STATUS              RESTARTS   AGE
+# rocketchat-xxx-yyy       0/1     Pending             0          2m
+# rocketchat-xxx-zzz       0/1     Error               1          2m
+```
+
+**Root Cause:**
+Resource constraints, MongoDB connectivity issues, or pod scheduling problems.
+
+**Immediate Diagnosis:**
+```bash
+# Check pod details
+kubectl describe pod $(kubectl get pods -l app=rocketchat -o jsonpath='{.items[0].metadata.name}')
+
+# Check pod logs (even if in error state)
+kubectl logs $(kubectl get pods -l app=rocketchat -o jsonpath='{.items[0].metadata.name}') --previous
+
+# Check events
+kubectl get events --sort-by='.lastTimestamp' | grep rocketchat
+
+# Check node resources
+kubectl describe nodes
+```
+
+**Common Solutions:**
+
+#### Resource Constraints
+```bash
+# Check if pods can't be scheduled due to resource limits
+kubectl describe node myvm
+
+# Reduce resource requests if needed
+kubectl edit deployment rocketchat
+# Lower the requests.memory and requests.cpu values
+```
+
+#### MongoDB Connectivity
+```bash
+# Verify MongoDB is accessible
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --eval "db.stats()"
+
+# Test service connectivity
+kubectl run test-pod --image=busybox --rm -it --restart=Never -- wget -O- rocketchat-mongodb:27017
+```
+
+#### Image Pull Issues
+```bash
+# Check if Rocket.Chat image is pulling correctly
+kubectl describe pod $(kubectl get pods -l app=rocketchat -o jsonpath='{.items[0].metadata.name}')
+
+# Look for ImagePullBackOff errors
+```
+
+#### Clean Restart
+```bash
+# Delete problematic pods
+kubectl delete pods -l app=rocketchat
+
+# Or restart the entire deployment
+kubectl rollout restart deployment rocketchat
+
+# Check status
+kubectl get pods -l app=rocketchat -w
+```
+
 #### ✅ MongoDB Deployment Issues - FULLY RESOLVED
 **Status:** All MongoDB issues fixed and working
 **Issues Resolved:**

@@ -27,18 +27,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "52.183.221.89"  # Your VM public IP
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: rocketchat-service
-            port:
-              number: 80
-  # Default rule for IP access
-  - http:
+  - http:  # Default routing without host specification
       paths:
       - path: /
         pathType: Prefix
