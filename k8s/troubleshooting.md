@@ -625,7 +625,7 @@ kubectl get pods -l app=rocketchat -w
 kubectl get events --sort-by='.lastTimestamp' | grep rocketchat
 ```
 
-### 15. MongoDB Connection Issues (CRITICAL - Current Issue)
+### 15. MongoDB Connection Issues ✅ RESOLVED
 **Symptoms:**
 ```bash
 kubectl logs $(kubectl get pods -l app=rocketchat --field-selector=status.phase!=Pending -o jsonpath='{.items[0].metadata.name}') --previous
@@ -737,13 +737,86 @@ exit;
 3. **Remove Authentication** (Temporary workaround)
 4. **Restart Everything** (Last resort)
 
-#### ✅ MongoDB Deployment Issues - FULLY RESOLVED
-**Status:** All MongoDB issues fixed and working
-**Issues Resolved:**
-1. ✅ Health probes fixed (`mongo` → `/opt/bitnami/mongodb/bin/mongosh`)
-2. ✅ Init job fixed (wrong client path)
-3. ✅ Replica set successfully initialized
-4. ✅ MongoDB fully ready for Rocket.Chat
+### 16. MongoDB NoReplicationEnabled Error ✅ RESOLVED
+**Symptoms:**
+```bash
+kubectl exec -it $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh
+# MongoServerError[NoReplicationEnabled]: This node was not started with replication enabled
+# MongoServerError[NoReplicationEnabled]: not running with --replSet
+```
+
+**Root Cause:**
+MongoDB deployment was missing replica set configuration environment variables.
+
+**Solution Applied:**
+```yaml
+# In mongodb-deployment.yaml, added:
+- name: MONGODB_REPLICA_SET_MODE
+  value: "primary"
+- name: MONGODB_REPLICA_SET_KEY
+  value: "replicasetkey123"
+- name: MONGODB_ADVERTISED_HOSTNAME
+  value: "rocketchat-mongodb"
+```
+
+**Fix Steps:**
+```bash
+# Delete old MongoDB deployment
+kubectl delete deployment rocketchat-mongodb
+
+# Apply updated configuration
+kubectl apply -f mongodb-deployment.yaml
+
+# Wait for MongoDB to be ready
+kubectl wait --for=condition=available --timeout=300s deployment/rocketchat-mongodb
+
+# Restart Rocket.Chat pods
+kubectl delete pods -l app=rocketchat
+
+# Verify pods are running
+kubectl get pods -l app=rocketchat
+```
+
+**Verification:**
+```bash
+# Check replica set status
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --username root --password rocketchat123 --authenticationDatabase admin --eval "rs.status()"
+# Should show: "ok": 1 with member state as PRIMARY
+```
+
+## ✅ DEPLOYMENT SUCCESS SUMMARY
+
+### Successfully Resolved Issues:
+1. ✅ **Helm Installation** - Removed snap version, installed manually
+2. ✅ **kubectl Permissions** - Fixed kubeconfig file permissions
+3. ✅ **Nginx Ingress** - Removed configuration-snippet, fixed host validation
+4. ✅ **MongoDB Health Probes** - Fixed client path (`mongo` → `/opt/bitnami/mongodb/bin/mongosh`)
+5. ✅ **MongoDB Init Job** - Fixed client path for replica set initialization
+6. ✅ **Pod Anti-Affinity** - Changed from required to preferred for single-node
+7. ✅ **MongoDB Replication** - Added replica set configuration environment variables
+8. ✅ **Rocket.Chat Running** - Successfully deployed and accessible
+
+### Current Deployment Status:
+```bash
+# MongoDB: Running with replica set
+kubectl get pods -l app=mongodb
+# rocketchat-mongodb-xxx   1/1     Running   0          10m
+
+# Rocket.Chat: 1 pod running, 2 pending (anti-affinity)
+kubectl get pods -l app=rocketchat
+# rocketchat-xxx-yyy   1/1     Running   0          10m
+# rocketchat-xxx-zzz   0/1     Pending   0          10m  # Anti-affinity
+# rocketchat-xxx-aaa   0/1     Pending   0          10m  # Anti-affinity
+
+# Ingress: Configured and routing
+kubectl get ingress
+# rocketchat-ingress   nginx   *   52.183.221.89   80   30m
+```
+
+### Access Information:
+- **URL:** http://52.183.221.89
+- **Admin:** admin/changeme123
+- **Status:** ✅ OPERATIONAL
 
 **Verification:**
 ```bash
