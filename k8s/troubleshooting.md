@@ -341,23 +341,28 @@ ls -la ~
 cd ~/rocketchat-observability/k8s
 ```
 
-#### ✅ MongoDB Deployment Timeout Issues - RESOLVED
-**Status:** Fixed with correct health probe paths
-**Root Cause:** Bitnami MongoDB image uses `mongosh` not `mongo` client
-**Solution Applied:** Updated health probes to use `/opt/bitnami/mongodb/bin/mongosh`
+#### ✅ MongoDB Deployment Issues - FULLY RESOLVED
+**Status:** All MongoDB issues fixed and working
+**Issues Resolved:**
+1. ✅ Health probes fixed (`mongo` → `/opt/bitnami/mongodb/bin/mongosh`)
+2. ✅ Init job fixed (wrong client path)
+3. ✅ Replica set successfully initialized
+4. ✅ MongoDB fully ready for Rocket.Chat
+
 **Verification:**
 ```bash
-# Before fix: 0/1 Running (not ready)
+# MongoDB pod status
 kubectl get pods -l app=mongodb
-# rocketchat-mongodb-xxxxxxxxxx-xxxxx   0/1     Running   0          23s
+# rocketchat-mongodb-xxxxxxxxxx-xxxxx   1/1     Running   0          5m
 
-# After fix: 1/1 Running (ready)
-kubectl get pods -l app=mongodb
-# rocketchat-mongodb-xxxxxxxxxx-xxxxx   1/1     Running   0          36s
+# Init job completed successfully
+kubectl get jobs
+# rocketchat-mongodb-init   Complete   1/1           11s        2m
 
-# Deployment wait successful
-kubectl wait --for=condition=available --timeout=60s deployment/rocketchat-mongodb
-# deployment.apps/rocketchat-mongodb condition met
+# Init job logs show success
+kubectl logs $(kubectl get pods -l job-name=rocketchat-mongodb-init -o jsonpath='{.items[0].metadata.name}')
+# MongoDB is ready. Initializing replica set...
+# Replica set initialized successfully
 ```
 
 ```bash
