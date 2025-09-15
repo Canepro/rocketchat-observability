@@ -53,6 +53,7 @@ git pull origin true-one-click
 ```
 
 #### ✅ Script Execute Permission Issues
+**Status:** Common issue after cloning
 **Symptoms:**
 ```bash
 ./deploy.sh deploy
@@ -60,18 +61,35 @@ git pull origin true-one-click
 ```
 
 **Root Cause:**
-Script file doesn't have execute permissions after cloning.
+Script file doesn't have execute permissions after cloning from Git.
 
 **Solution:**
 ```bash
-# Make script executable
+# If you're in the k8s directory already
+chmod +x deploy.sh
+
+# If you're in the project root directory
 chmod +x k8s/deploy.sh
 
-# Or make all scripts executable
+# Make all scripts executable at once (from project root)
 chmod +x k8s/*.sh
+chmod +x scripts/*.sh
 
 # Then run deployment
+cd k8s  # if not already there
 ./deploy.sh deploy
+```
+
+**Common Mistakes:**
+```bash
+# ❌ Wrong - you're already in k8s directory
+chmod +x k8s/deploy.sh
+
+# ✅ Correct - from k8s directory
+chmod +x deploy.sh
+
+# ✅ Correct - from project root
+chmod +x k8s/deploy.sh
 ```
 
 **Prevention:**
