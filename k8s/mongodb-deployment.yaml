@@ -34,8 +34,14 @@ spec:
           value: "rocketchat123"
         - name: MONGODB_DATABASE
           value: "rocketchat"
+        - name: MONGODB_REPLICA_SET_MODE
+          value: "primary"
         - name: MONGODB_REPLICA_SET_NAME
           value: "rs0"
+        - name: MONGODB_REPLICA_SET_KEY
+          value: "replicasetkey123"
+        - name: MONGODB_ADVERTISED_HOSTNAME
+          value: "rocketchat-mongodb"
         ports:
         - containerPort: 27017
           name: mongodb
