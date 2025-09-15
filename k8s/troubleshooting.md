@@ -6,26 +6,41 @@ This guide helps troubleshoot common issues when deploying Rocket.Chat with 2 po
 
 ## Azure VM Setup Issues
 
-### ✅ RESOLVED: Helm Installation Issues
+### ✅ RESOLVED: Multiple Azure VM Setup Issues
+
+#### ✅ Helm Installation Issues
 **Status:** Fixed with manual installation method
 **Solution Used:** Remove snap and install manually from official source
 
+#### ✅ kubectl Permission Issues
+**Status:** Fixed with source kubeconfig permissions
+**Solution Used:** `sudo chmod 644 /etc/rancher/k3s/k3s.yaml`
+
 ```bash
-# This method worked successfully:
+# Both issues resolved:
+# 1. Helm: Remove snap, manual install
 sudo snap remove helm
-cd /tmp
 wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
 tar -zxvf helm-v3.13.0-linux-amd64.tar.gz
 sudo mv linux-amd64/helm /usr/local/bin/helm
-sudo chmod +x /usr/local/bin/helm
-helm version  # Should show: version.BuildInfo{Version:"v3.13.0", ...}
+
+# 2. kubectl: Fix source kubeconfig permissions
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+sudo chown root:root /etc/rancher/k3s/k3s.yaml
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $(id -u):$(id -g) ~/.kube/config
+
+# Verification:
+kubectl cluster-info  # ✅ Working
+kubectl get nodes     # ✅ Shows k3s node ready
 ```
 
-**Common Issues:**
+**Common Issues Resolved:**
 - Network download failures → Use `wget` instead of `curl`
 - Snap compatibility issues → Remove snap and install manually
-- Architecture mismatches → Verify with `uname -m` (should be x86_64)
+- Architecture mismatches → Verify with `uname -m`
 - Segmentation faults → Clean environment installation
+- kubectl permission denied → Fix source kubeconfig permissions
 
 ---
 
