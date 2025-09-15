@@ -187,6 +187,56 @@ kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.
 kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- netstat -tlnp | grep 27017
 ```
 
+#### 6. Fix MongoDB Health Probe Issues (Bitnami Image)
+```bash
+# The issue: Bitnami MongoDB image doesn't have 'mongo' client in PATH
+# Solution: Update the deployment with correct MongoDB client path
+
+# Edit the MongoDB deployment
+kubectl edit deployment rocketchat-mongodb
+
+# Change the livenessProbe and readinessProbe from:
+# exec:
+#   command:
+#   - mongo
+#   - --eval
+#   - db.adminCommand('ping')
+
+# To:
+# exec:
+#   command:
+#   - /opt/bitnami/mongodb/bin/mongo
+#   - --eval
+#   - db.adminCommand('ping')
+
+# Or use mongosh (MongoDB 5.0+ shell)
+# exec:
+#   command:
+#   - /opt/bitnami/mongodb/bin/mongosh
+#   - --eval
+#   - db.adminCommand('ping')
+```
+
+#### 7. Alternative: Use TCP Socket Probe
+```bash
+# Edit deployment and replace exec probes with tcpSocket
+kubectl edit deployment rocketchat-mongodb
+
+# Replace livenessProbe and readinessProbe with:
+# tcpSocket:
+#   port: 27017
+# timeoutSeconds: 5
+```
+
+#### 8. Quick Fix: Disable Probes Temporarily
+```bash
+# Edit deployment to comment out probes temporarily
+kubectl edit deployment rocketchat-mongodb
+
+# Comment out livenessProbe and readinessProbe sections
+# Then MongoDB should become ready immediately
+```
+
 ```bash
 # Both issues resolved:
 # 1. Helm: Remove snap, manual install
