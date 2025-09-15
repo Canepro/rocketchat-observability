@@ -625,6 +625,118 @@ kubectl get pods -l app=rocketchat -w
 kubectl get events --sort-by='.lastTimestamp' | grep rocketchat
 ```
 
+### 15. MongoDB Connection Issues (CRITICAL - Current Issue)
+**Symptoms:**
+```bash
+kubectl logs $(kubectl get pods -l app=rocketchat --field-selector=status.phase!=Pending -o jsonpath='{.items[0].metadata.name}') --previous
+# MongoTopologyClosedError: Topology is closed
+# MongoServerSelectionError: Server selection timed out after 30000 ms
+# ReplicaSetNoPrimary
+```
+
+**Root Cause:**
+MongoDB replica set not properly initialized or authentication issues preventing Rocket.Chat from connecting.
+
+**Immediate Diagnosis:**
+```bash
+# Check MongoDB pod status
+kubectl get pods -l app=mongodb
+
+# Check MongoDB logs
+kubectl logs $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
+
+# Check init job status
+kubectl get jobs
+kubectl logs $(kubectl get pods -l job-name=rocketchat-mongodb-init -o jsonpath='{.items[0].metadata.name}')
+
+# Test MongoDB connectivity
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --eval "db.adminCommand('ping')"
+```
+
+**Quick Fixes:**
+
+#### Fix 1: Reinitialize Replica Set
+```bash
+# Delete the old init job
+kubectl delete job rocketchat-mongodb-init
+
+# Connect to MongoDB directly
+kubectl exec -it $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh
+
+# In MongoDB shell:
+rs.initiate({
+  _id: 'rs0',
+  members: [
+    {
+      _id: 0,
+      host: 'rocketchat-mongodb:27017'
+    }
+  ]
+});
+
+# Exit MongoDB shell and check status
+rs.status();
+```
+
+#### Fix 2: Test Authentication
+```bash
+# Test root authentication
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --username root --password rocketchat123 --authenticationDatabase admin --eval "db.adminCommand('ping')"
+
+# Test rocketchat user authentication
+kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh --username rocketchat --password rocketchat123 --authenticationDatabase rocketchat --eval "db.stats()"
+```
+
+#### Fix 3: Remove Authentication Temporarily (For Testing)
+```bash
+# Edit ConfigMap to remove authentication (temporary)
+kubectl edit configmap rocketchat-config
+
+# Change:
+MONGO_URL: "mongodb://rocketchat-mongodb:27017/rocketchat?replicaSet=rs0"
+MONGO_OPLOG_URL: "mongodb://rocketchat-mongodb:27017/local?replicaSet=rs0"
+
+# To:
+MONGO_URL: "mongodb://rocketchat-mongodb:27017/rocketchat"
+MONGO_OPLOG_URL: "mongodb://rocketchat-mongodb:27017/local"
+```
+
+#### Fix 4: Restart Everything
+```bash
+# Restart MongoDB
+kubectl delete pod $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
+
+# Wait for MongoDB to restart
+kubectl wait --for=condition=ready pod -l app=mongodb --timeout=300s
+
+# Restart Rocket.Chat pods
+kubectl delete pods -l app=rocketchat
+
+# Check status
+kubectl get pods -l app=rocketchat -w
+```
+
+#### Verify MongoDB Replica Set Status
+```bash
+# Connect to MongoDB and check replica set
+kubectl exec -it $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.name}') -- /opt/bitnami/mongodb/bin/mongosh
+
+# Check replica set status
+rs.status();
+
+# Check if rocketchat database exists
+show dbs;
+
+# Exit
+exit;
+```
+
+**Priority Order:**
+1. **Reinitialize Replica Set** (Most likely fix)
+2. **Test Authentication** (Verify credentials)
+3. **Remove Authentication** (Temporary workaround)
+4. **Restart Everything** (Last resort)
+
 #### ✅ MongoDB Deployment Issues - FULLY RESOLVED
 **Status:** All MongoDB issues fixed and working
 **Issues Resolved:**
