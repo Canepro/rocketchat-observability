@@ -202,7 +202,111 @@ tar -zxvf helm-v3.13.0-linux-*.tar.gz
 sudo mv linux-*/helm /usr/local/bin/helm
 ```
 
-### 7. Docker Group Membership Not Applied
+### 7. Helm Segmentation Fault
+
+**Symptoms:**
+```bash
+helm version
+# Segmentation fault
+```
+
+**Root Cause:**
+Snap version compatibility issues, environment conflicts, or corrupted installation.
+
+**Solutions:**
+
+#### Option 1: Remove Snap and Install Manually
+```bash
+# Remove snap version
+sudo snap remove helm
+
+# Install manually from official source
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+tar -zxvf helm-v3.13.0-linux-amd64.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/helm
+sudo chmod +x /usr/local/bin/helm
+
+# Verify
+helm version
+```
+
+#### Option 2: Fix Snap Environment Issues
+```bash
+# Check snap version and refresh
+snap list | grep helm
+sudo snap refresh helm
+
+# If that fails, remove and reinstall
+sudo snap remove helm
+sudo snap install helm --classic
+
+# Try with different shell
+bash -c "helm version"
+```
+
+#### Option 3: Use Alternative Snap Channel
+```bash
+# Remove current snap
+sudo snap remove helm
+
+# Install from edge channel (may have fixes)
+sudo snap install helm --edge
+
+# Or try beta channel
+sudo snap install helm --beta
+```
+
+#### Option 4: Check Environment Variables
+```bash
+# Check for conflicting environment variables
+env | grep -i helm
+env | grep -i kube
+
+# Temporarily clear problematic variables
+unset KUBECONFIG
+unset HELM_CONFIG_HOME
+
+# Try again
+helm version
+```
+
+#### Option 5: Install via Apt Repository
+```bash
+# Remove snap first
+sudo snap remove helm
+
+# Add Helm apt repository
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+
+# Install
+sudo apt update
+sudo apt install helm
+
+# Verify
+helm version
+```
+
+#### Option 6: Manual Binary with Clean Environment
+```bash
+# Remove snap completely
+sudo snap remove --purge helm
+
+# Download and install in clean environment
+cd /tmp
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+tar -xzf helm-v3.13.0-linux-amd64.tar.gz
+sudo cp linux-amd64/helm /usr/local/bin/helm-manual
+sudo chmod +x /usr/local/bin/helm-manual
+
+# Test with full path
+/usr/local/bin/helm-manual version
+
+# If works, replace the system helm
+sudo mv /usr/local/bin/helm-manual /usr/local/bin/helm
+```
+
+### 8. Docker Group Membership Not Applied
 
 **Symptoms:**
 ```bash
@@ -230,7 +334,7 @@ docker version
 docker run hello-world
 ```
 
-### 8. k3s Not Starting Properly
+### 9. k3s Not Starting Properly
 
 **Symptoms:**
 ```bash
@@ -254,7 +358,7 @@ kubectl cluster-info
 kubectl get nodes
 ```
 
-### 9. kubectl Configuration Issues
+### 10. kubectl Configuration Issues
 
 **Symptoms:**
 ```bash
