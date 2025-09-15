@@ -64,16 +64,25 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.
 sudo apt update && sudo apt install helm
 ```
 
-### 4. Install Nginx Ingress Controller
+### 4. Install Nginx Ingress Controller ✅ COMPLETED
 ```bash
-# Add nginx helm repo
+# ✅ SUCCESSFUL INSTALLATION:
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 
-# Install nginx ingress
 helm install nginx-ingress ingress-nginx/ingress-nginx \
   --set controller.publishService.enabled=true \
   --set controller.service.externalIPs="{52.183.221.89}"
+
+# ✅ VERIFICATION:
+kubectl get pods -n default | grep nginx
+# nginx-ingress-ingress-nginx-controller-958495fb5-zrdq7   1/1     Running
+
+kubectl get svc -n default | grep nginx
+# nginx-ingress-ingress-nginx-controller   LoadBalancer   10.43.235.205   52.183.221.89
+
+curl http://52.183.221.89
+# Returns nginx 404 (expected - routes not configured yet)
 ```
 
 ### 5. Verify Installation

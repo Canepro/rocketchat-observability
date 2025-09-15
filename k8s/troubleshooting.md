@@ -16,6 +16,20 @@ This guide helps troubleshoot common issues when deploying Rocket.Chat with 2 po
 **Status:** Fixed with source kubeconfig permissions
 **Solution Used:** `sudo chmod 644 /etc/rancher/k3s/k3s.yaml`
 
+#### ✅ Nginx Ingress Controller
+**Status:** Successfully deployed and running
+**Verification:**
+```bash
+kubectl get pods -n default | grep nginx
+# nginx-ingress-ingress-nginx-controller-958495fb5-zrdq7   1/1     Running
+
+kubectl get svc -n default | grep nginx
+# nginx-ingress-ingress-nginx-controller   LoadBalancer   10.43.235.205   52.183.221.89
+
+curl http://52.183.221.89
+# Returns nginx 404 (expected - no routes configured yet)
+```
+
 ```bash
 # Both issues resolved:
 # 1. Helm: Remove snap, manual install
