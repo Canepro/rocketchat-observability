@@ -818,6 +818,90 @@ kubectl get ingress
 - **Admin:** admin/changeme123
 - **Status:** ✅ OPERATIONAL
 
+### 17. Persistent Pending Pods After Scaling
+**Symptoms:**
+```bash
+kubectl scale deployment rocketchat --replicas=1
+# Scaled successfully, but pending pods keep reappearing
+kubectl get pods -l app=rocketchat
+# rocketchat-xxx-yyy   1/1     Running   0          35m
+# rocketchat-xxx-zzz   0/1     Pending   0          12s  # Keeps coming back
+```
+
+**Root Cause:**
+Multiple ReplicaSets exist from previous deployment updates, and they maintain their desired replica count independently.
+
+**Diagnosis:**
+```bash
+# Check all ReplicaSets
+kubectl get rs -l app=rocketchat
+# NAME                    DESIRED   CURRENT   READY   AGE
+# rocketchat-796fd8f57    1         1         1       80m  # Current
+# rocketchat-7bc55f5795   1         1         0       47m  # Old, still trying to create pods
+```
+
+**Solution:**
+
+#### Option 1: Scale Old ReplicaSets to Zero
+```bash
+# List all ReplicaSets
+kubectl get rs -l app=rocketchat
+
+# Scale old ReplicaSets to 0
+kubectl scale rs rocketchat-7bc55f5795 --replicas=0
+
+# Delete any pending pods
+kubectl delete pod rocketchat-7bc55f5795-xxxxx
+```
+
+#### Option 2: Delete Old ReplicaSets
+```bash
+# Delete old ReplicaSets entirely
+kubectl delete rs rocketchat-7bc55f5795
+
+# Note: This may recreate if the deployment still references it
+```
+
+#### Option 3: Clean Deployment Update (RECOMMENDED)
+```bash
+# Get current deployment revision
+kubectl rollout history deployment rocketchat
+
+# Delete all old ReplicaSets at once
+kubectl delete rs $(kubectl get rs -l app=rocketchat -o jsonpath='{.items[?(@.spec.replicas==0)].metadata.name}')
+
+# Or manually delete each old ReplicaSet
+kubectl get rs -l app=rocketchat --no-headers | grep " 0 " | awk '{print $1}' | xargs kubectl delete rs
+```
+
+#### Option 4: Force Single ReplicaSet
+```bash
+# Edit deployment to ensure only 1 replica
+kubectl edit deployment rocketchat
+# Set: spec.replicas: 1
+
+# Then clean up all ReplicaSets except the current one
+kubectl get rs -l app=rocketchat -o json | jq -r '.items[] | select(.status.replicas==0) | .metadata.name' | xargs -I {} kubectl delete rs {}
+```
+
+**Prevention:**
+```bash
+# When updating deployments, use --record for history
+kubectl apply -f rocketchat-deployment.yaml --record
+
+# Clean up old ReplicaSets periodically
+kubectl delete rs -l app=rocketchat --field-selector status.replicas=0
+```
+
+**Verification:**
+```bash
+# Should show only one ReplicaSet with DESIRED=1
+kubectl get rs -l app=rocketchat
+
+# Should show only one running pod
+kubectl get pods -l app=rocketchat
+```
+
 **Verification:**
 ```bash
 # MongoDB pod status
