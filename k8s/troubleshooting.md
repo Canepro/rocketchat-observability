@@ -385,26 +385,85 @@ kubectl get nodes
 
 **Symptoms:**
 ```bash
-kubectl cluster-info
-# Error: The connection to the server localhost:8080 was refused
+kubectl get pods
+# WARN[0000] Unable to read /etc/rancher/k3s/k3s.yaml, please start server with --write-kubeconfig-mode or --write-kubeconfig-group to modify kube config permissions
+# error: error loading config file "/etc/rancher/k3s/k3s.yaml": open /etc/rancher/k3s/k3s.yaml: permission denied
 ```
 
-**Solution:**
+**Root Cause:**
+k3s kubeconfig file has incorrect permissions for the regular user.
+
+**Solutions:**
+
+#### Option 1: Fix kubeconfig permissions (Recommended)
 ```bash
-# Check if k3s is running
-sudo systemctl status k3s
-
-# Verify kubeconfig file
+# Check current permissions
 ls -la ~/.kube/config
-
-# Check file permissions
 ls -la /etc/rancher/k3s/k3s.yaml
 
-# Re-copy kubeconfig if needed
+# Fix permissions (run as your regular user)
+sudo chown $(id -u):$(id -g) ~/.kube/config
+sudo chmod 600 ~/.kube/config
+
+# Alternative: Copy kubeconfig with correct permissions
 sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 sudo chown $(id -u):$(id -g) ~/.kube/config
 
 # Test connection
+kubectl cluster-info
+kubectl get nodes
+```
+
+#### Option 2: Use sudo with kubectl
+```bash
+# Use sudo for kubectl commands
+sudo kubectl get pods
+sudo kubectl get svc
+
+# Or create an alias
+echo "alias k='sudo kubectl'" >> ~/.bashrc
+source ~/.bashrc
+k get pods
+```
+
+#### Option 3: Fix k3s service permissions
+```bash
+# Stop k3s service
+sudo systemctl stop k3s
+
+# Start k3s with proper kubeconfig permissions
+sudo k3s server --write-kubeconfig-mode 644
+
+# Or modify the service file
+sudo systemctl edit k3s
+# Add: [Service]
+# Environment=K3S_KUBECONFIG_MODE=644
+
+# Restart k3s
+sudo systemctl daemon-reload
+sudo systemctl restart k3s
+
+# Wait for k3s to restart
+sleep 10
+
+# Re-copy kubeconfig
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $(id -u):$(id -g) ~/.kube/config
+```
+
+#### Option 4: Regenerate kubeconfig as k3s user
+```bash
+# Switch to root and regenerate
+sudo -i
+k3s kubectl config view --raw > /etc/rancher/k3s/k3s.yaml
+chmod 644 /etc/rancher/k3s/k3s.yaml
+exit
+
+# Copy to user home
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $(id -u):$(id -g) ~/.kube/config
+
+# Test
 kubectl cluster-info
 ```
 
