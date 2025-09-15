@@ -82,7 +82,127 @@ sudo chmod +x /usr/local/bin/helm
 helm version
 ```
 
-### 2. Docker Group Membership Not Applied
+#### Option 5: Use Snap (Most Reliable for Ubuntu)
+```bash
+# This is often the most reliable method on Ubuntu
+sudo snap install helm --classic
+
+# If snap fails, try updating snapd first
+sudo apt update && sudo apt install snapd
+sudo snap install helm --classic
+
+# Verify installation
+helm version
+```
+
+#### Option 6: Direct Binary Download with Verification
+```bash
+# Download Helm binary directly (most reliable)
+cd /tmp
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+
+# If wget fails, try with curl and no progress bar
+curl -s https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm-v3.13.0-linux-amd64.tar.gz
+
+# Verify the download
+ls -lh helm-v3.13.0-linux-amd64.tar.gz
+
+# Extract
+tar -xzf helm-v3.13.0-linux-amd64.tar.gz
+
+# Move to PATH
+sudo mv linux-amd64/helm /usr/local/bin/helm
+sudo chmod +x /usr/local/bin/helm
+
+# Clean up
+rm -rf linux-amd64* helm-*
+
+# Verify
+helm version
+```
+
+### 5. Network/Download Issues
+
+**Symptoms:**
+```bash
+curl -L --retry 3 --retry-delay 5 https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm.tar.gz
+# Shows: 100  2061  100  2061    0     0    249      0  0:00:08
+# File size: 2.2M instead of expected 15.4M
+# tar: Unexpected EOF in archive
+```
+
+**Root Cause:**
+Network connectivity issues, firewall blocking, or download interruptions.
+
+**Solutions:**
+
+#### Use a Different Download Method
+```bash
+# Method 1: Use wget instead of curl
+wget --tries=3 https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+
+# Method 2: Use aria2 for better download reliability
+sudo apt install aria2
+aria2c -x 16 -s 16 https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+
+# Method 3: Download from GitHub releases
+wget https://github.com/helm/helm/releases/download/v3.13.0/helm-v3.13.0-linux-amd64.tar.gz
+```
+
+#### Use Alternative Mirrors
+```bash
+# Huawei Cloud mirror
+wget https://mirrors.huaweicloud.com/helm/v3.13.0/helm-v3.13.0-linux-amd64.tar.gz
+
+# Alibaba Cloud mirror
+wget https://mirrors.aliyun.com/helm/v3.13.0/helm-v3.13.0-linux-amd64.tar.gz
+
+# Tencent Cloud mirror
+wget https://mirrors.tencent.com/helm/v3.13.0/helm-v3.13.0-linux-amd64.tar.gz
+```
+
+#### Disable SSL Verification (if firewall blocks HTTPS)
+```bash
+# Only use as last resort if SSL is blocked
+curl -k -L https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm.tar.gz
+```
+
+#### Use Proxy if Available
+```bash
+# If you have a proxy configured
+export http_proxy="http://your-proxy:port"
+export https_proxy="http://your-proxy:port"
+curl -L https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm.tar.gz
+```
+
+### 6. Installation Verification Issues
+
+**Symptoms:**
+```bash
+helm version
+# Error: bash: /usr/local/bin/helm: cannot execute binary file: Exec format error
+```
+
+**Root Cause:**
+Wrong architecture binary downloaded (e.g., ARM64 instead of AMD64).
+
+**Solution:**
+```bash
+# Check your system architecture
+uname -m
+
+# For AMD64/x86_64 systems:
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+
+# For ARM64 systems:
+wget https://get.helm.sh/helm-v3.13.0-linux-arm64.tar.gz
+
+# Extract and install
+tar -zxvf helm-v3.13.0-linux-*.tar.gz
+sudo mv linux-*/helm /usr/local/bin/helm
+```
+
+### 7. Docker Group Membership Not Applied
 
 **Symptoms:**
 ```bash
@@ -110,7 +230,7 @@ docker version
 docker run hello-world
 ```
 
-### 3. k3s Not Starting Properly
+### 8. k3s Not Starting Properly
 
 **Symptoms:**
 ```bash
@@ -134,7 +254,7 @@ kubectl cluster-info
 kubectl get nodes
 ```
 
-### 4. kubectl Configuration Issues
+### 9. kubectl Configuration Issues
 
 **Symptoms:**
 ```bash
