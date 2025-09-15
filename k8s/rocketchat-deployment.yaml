@@ -24,19 +24,20 @@ spec:
         app: rocketchat
         component: chat
     spec:
-      # Pod anti-affinity for high availability (soft requirement for single-node)
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - rocketchat
-              topologyKey: kubernetes.io/hostname
+      # Pod anti-affinity COMMENTED OUT for single-node testing with 2 pods
+      # Uncomment for production multi-node deployments
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchExpressions:
+      #           - key: app
+      #             operator: In
+      #             values:
+      #             - rocketchat
+      #         topologyKey: kubernetes.io/hostname
 
       # Security context
       securityContext:

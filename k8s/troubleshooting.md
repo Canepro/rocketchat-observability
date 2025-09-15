@@ -536,7 +536,7 @@ kubectl rollout restart deployment rocketchat
 kubectl get pods -l app=rocketchat -w
 ```
 
-### 14. Pod Anti-Affinity Scheduling Issues
+### 14. Pod Anti-Affinity Scheduling Issues ⚠️ BLOCKS 2 PODS ON SINGLE NODE
 **Symptoms:**
 ```bash
 kubectl get pods -l app=rocketchat
@@ -549,62 +549,67 @@ kubectl get pods -l app=rocketchat
 ```
 
 **Root Cause:**
-Pod anti-affinity rules are set to `requiredDuringSchedulingIgnoredDuringExecution`, which means pods MUST run on different nodes. In a single-node cluster (like k3s), this prevents scheduling.
+Pod anti-affinity rules prevent multiple pods from running on the same node:
+- `requiredDuringSchedulingIgnoredDuringExecution`: Hard requirement - blocks 2nd pod
+- `preferredDuringSchedulingIgnoredDuringExecution`: Soft preference - still prevents 2nd pod on single node
+
+**IMPORTANT FOR 2 PODS:** Even with "preferred" anti-affinity, Kubernetes will NOT schedule a second pod on the same node if it can avoid it. For testing with 2 Rocket.Chat pods on a single-node cluster, you MUST remove anti-affinity entirely.
 
 **Solutions:**
 
-#### Fix Anti-Affinity for Single-Node Cluster
+#### Solution 1: REMOVE Anti-Affinity Completely (REQUIRED for 2 pods)
 ```bash
-# Change required to preferred (soft requirement)
+# Edit deployment and DELETE the entire affinity section
 kubectl edit deployment rocketchat
 
-# Change this section:
-affinity:
-  podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:  # ❌ Remove this
-    - labelSelector:
-        matchExpressions:
-        - key: app
-          operator: In
-          values:
-          - rocketchat
-      topologyKey: kubernetes.io/hostname
-# To this:
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:  # ✅ Use this instead
-    - weight: 100
-      podAffinityTerm:
-        labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-          - rocketchat
-        topologyKey: kubernetes.io/hostname
+# Find and DELETE this entire block:
+spec:
+  template:
+    spec:
+      affinity:                    # ← DELETE FROM HERE
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rocketchat
+              topologyKey: kubernetes.io/hostname  # ← TO HERE
+      # Keep everything else below
 ```
 
-#### Alternative: Remove Anti-Affinity Entirely
+#### Solution 2: Update YAML File and Reapply
+```yaml
+# In rocketchat-deployment.yaml, comment out the affinity section:
+spec:
+  template:
+    spec:
+      # COMMENT OUT OR DELETE THIS ENTIRE BLOCK FOR 2 PODS:
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchExpressions:
+      #           - key: app
+      #             operator: In
+      #             values:
+      #           - rocketchat
+      #         topologyKey: kubernetes.io/hostname
+```
+
+Then apply and scale:
 ```bash
-# For single-node testing, remove anti-affinity completely
-kubectl edit deployment rocketchat
-
-# Remove the entire affinity section or comment it out
-# affinity:
-#   podAntiAffinity:
-#     preferredDuringSchedulingIgnoredDuringExecution:
-#     - weight: 100
-#       podAffinityTerm:
-#         labelSelector:
-#           matchExpressions:
-#           - key: app
-#             operator: In
-#             values:
-#           - rocketchat
-#         topologyKey: kubernetes.io/hostname
+kubectl apply -f rocketchat-deployment.yaml
+kubectl scale deployment rocketchat --replicas=2
+kubectl get pods -l app=rocketchat -w
 ```
 
-#### Alternative: Scale to Single Replica
+#### Alternative: Keep 1 Pod (Current State)
 ```bash
 # For testing on single node, use only 1 replica
 kubectl scale deployment rocketchat --replicas=1
@@ -613,17 +618,24 @@ kubectl scale deployment rocketchat --replicas=1
 kubectl scale deployment rocketchat --replicas=2
 ```
 
-#### Verify Fix
+#### Verify After Removing Anti-Affinity
 ```bash
-# Apply the changes
-kubectl apply -f rocketchat-deployment.yaml
+# After removing anti-affinity, scale to 2 replicas
+kubectl scale deployment rocketchat --replicas=2
 
-# Check pod scheduling
-kubectl get pods -l app=rocketchat -w
+# Both pods should now run on the same node
+kubectl get pods -l app=rocketchat -o wide
+# NAME                     READY   STATUS    NODE
+# rocketchat-xxx-yyy       1/1     Running   myvm
+# rocketchat-xxx-zzz       1/1     Running   myvm  # Same node!
 
 # Check events
 kubectl get events --sort-by='.lastTimestamp' | grep rocketchat
 ```
+
+**Expected Result for 2 Pods Testing:**
+- ✅ With anti-affinity removed: 2 pods running on same node
+- ❌ With anti-affinity (any type): Only 1 pod runs, 2nd stays Pending
 
 ### 15. MongoDB Connection Issues ✅ RESOLVED
 **Symptoms:**
@@ -794,29 +806,32 @@ kubectl exec $(kubectl get pods -l app=mongodb -o jsonpath='{.items[0].metadata.
 5. ✅ **MongoDB Init Job** - Fixed client path for replica set initialization
 6. ✅ **Pod Anti-Affinity** - Changed from required to preferred for single-node
 7. ✅ **MongoDB Replication** - Added replica set configuration environment variables
-8. ✅ **Rocket.Chat Running** - Successfully deployed and accessible
+8. ✅ **ReplicaSet Cleanup** - Removed old ReplicaSets causing persistent pending pods
+9. ✅ **Rocket.Chat Running** - Successfully deployed and accessible
 
-### Current Deployment Status:
+### Final Deployment Status:
 ```bash
-# MongoDB: Running with replica set
+# MongoDB: Running with replica set enabled
 kubectl get pods -l app=mongodb
-# rocketchat-mongodb-xxx   1/1     Running   0          10m
+# rocketchat-mongodb-xxx   1/1     Running   0          45m
 
-# Rocket.Chat: 1 pod running, 2 pending (anti-affinity)
+# Rocket.Chat: 1 pod running (scaled to 1 for single-node cluster)
 kubectl get pods -l app=rocketchat
-# rocketchat-xxx-yyy   1/1     Running   0          10m
-# rocketchat-xxx-zzz   0/1     Pending   0          10m  # Anti-affinity
-# rocketchat-xxx-aaa   0/1     Pending   0          10m  # Anti-affinity
+# rocketchat-xxx-yyy   1/1     Running   0          3m
 
-# Ingress: Configured and routing
+# Ingress: Configured and routing traffic
 kubectl get ingress
-# rocketchat-ingress   nginx   *   52.183.221.89   80   30m
+# rocketchat-ingress   nginx   *   52.183.221.89   80   60m
+
+# API Health Check
+curl http://52.183.221.89/api/info
+# Returns: {"version":"7.9.3","success":true}
 ```
 
 ### Access Information:
 - **URL:** http://52.183.221.89
-- **Admin:** admin/changeme123
-- **Status:** ✅ OPERATIONAL
+- **Admin:** Existing admin user (ADMIN_PASS ignored)
+- **Status:** ✅ FULLY OPERATIONAL
 
 ### 17. Persistent Pending Pods After Scaling
 **Symptoms:**
