@@ -31,6 +31,7 @@ curl http://52.183.221.89
 ```
 
 #### ✅ Repository Cloning Issues
+**Status:** Successfully resolved
 **Symptoms:**
 ```bash
 git clone https://github.com/Canepro/rocketchat-observability.git
@@ -40,22 +41,45 @@ git clone https://github.com/Canepro/rocketchat-observability.git
 **Root Cause:**
 Trying to clone into a directory without write permissions (like `/` for normal users).
 
-**Solution:**
+**Solution Used:**
 ```bash
 # Clone into home directory (recommended)
 cd ~
 git clone https://github.com/Canepro/rocketchat-observability.git
 cd rocketchat-observability
+git pull origin true-one-click
 
-# Or clone into a specific directory you can write to
-mkdir -p ~/projects
-cd ~/projects
-git clone https://github.com/Canepro/rocketchat-observability.git
+# Result: ✅ Successfully cloned 28 files
+```
+
+#### ✅ Script Execute Permission Issues
+**Symptoms:**
+```bash
+./deploy.sh deploy
+# -bash: ./deploy.sh: Permission denied
+```
+
+**Root Cause:**
+Script file doesn't have execute permissions after cloning.
+
+**Solution:**
+```bash
+# Make script executable
+chmod +x k8s/deploy.sh
+
+# Or make all scripts executable
+chmod +x k8s/*.sh
+
+# Then run deployment
+./deploy.sh deploy
+```
+
+**Prevention:**
+```bash
+# After cloning, make scripts executable
 cd rocketchat-observability
-
-# Verify clone worked
-ls -la
-# Should show k8s/ directory and other files
+chmod +x k8s/deploy.sh
+chmod +x scripts/*.sh
 ```
 
 ```bash
