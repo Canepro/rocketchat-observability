@@ -253,6 +253,25 @@ ls -la ~
 cd ~/rocketchat-observability/k8s
 ```
 
+#### ✅ MongoDB Deployment Timeout Issues - RESOLVED
+**Status:** Fixed with correct health probe paths
+**Root Cause:** Bitnami MongoDB image uses `mongosh` not `mongo` client
+**Solution Applied:** Updated health probes to use `/opt/bitnami/mongodb/bin/mongosh`
+**Verification:**
+```bash
+# Before fix: 0/1 Running (not ready)
+kubectl get pods -l app=mongodb
+# rocketchat-mongodb-xxxxxxxxxx-xxxxx   0/1     Running   0          23s
+
+# After fix: 1/1 Running (ready)
+kubectl get pods -l app=mongodb
+# rocketchat-mongodb-xxxxxxxxxx-xxxxx   1/1     Running   0          36s
+
+# Deployment wait successful
+kubectl wait --for=condition=available --timeout=60s deployment/rocketchat-mongodb
+# deployment.apps/rocketchat-mongodb condition met
+```
+
 ```bash
 # Both issues resolved:
 # 1. Helm: Remove snap, manual install
