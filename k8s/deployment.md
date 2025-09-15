@@ -6,8 +6,8 @@ This deployment creates a monolithic Rocket.Chat setup running on your Azure VM 
 
 ### 🌐 Access Information
 - **URL**: http://52.183.221.89
-- **Status**: ✅ OPERATIONAL
-- **Admin**: admin/changeme123
+- **Status**: ✅ OPERATIONAL (2 pods)
+- **Admin**: Existing admin user present; environment ADMIN_PASS may be ignored
 
 ## Azure VM Setup (Fresh Installation) ✅ COMPLETED
 
@@ -104,14 +104,14 @@ curl http://52.183.221.89
 ## Architecture
 
 ```
-Internet → Nginx Ingress → Rocket.Chat Service → Rocket.Chat Pods (1 running, 2 pending)
+Internet → Nginx Ingress → Rocket.Chat Service → Rocket.Chat Pods (2 running)
                                        ↓
 Internal MongoDB Service → MongoDB Pod (replica set enabled)
 ```
 
 ### Components ✅ DEPLOYED
 
-- **Rocket.Chat Pods**: 1 running, 2 pending (anti-affinity on single node)
+- **Rocket.Chat Pods**: 2 running (anti-affinity removed for single-node testing)
 - **MongoDB Pod**: Single replica with replica set enabled ✅
 - **MongoDB Init Job**: Completed successfully ✅
 - **Nginx Ingress**: Load balancer routing traffic ✅
@@ -247,9 +247,38 @@ Modify in `rocketchat-deployment.yaml` under `resources:` section.
 - **Large file uploads**: `proxy-body-size: "0"`
 - **Sticky sessions**: Based on request URI and host
 
+### Verifying request distribution
+During quick tests to the same path (for example `/api/info`), hash-by may send all requests to the same pod. Vary the path or query string to observe both pods serving traffic:
+```bash
+for i in {1..10}; do curl -s "http://52.183.221.89/api/info?x=$i" | jq -r '.instanceId? // .success'; done
+```
+
+To switch to round‑robin temporarily, remove the `upstream-hash-by` annotation in `k8s/nginx-ingress.yaml` and re-apply.
+
 ### External Load Balancing
 
 For production-like setup with external nginx, use the configuration in `external-nginx-config` as a reference.
+
+### Routing on k3s: Traefik vs Nginx
+On k3s, Traefik runs by default and typically listens on host port 80. If Nginx Ingress is installed without host ports, browsers may still hit Traefik and see a 404 while cluster-side curls work.
+
+Options:
+```bash
+# Temporary: route via Traefik too
+kubectl apply -f k8s/traefik-ingress.yaml
+
+# Preferred: disable Traefik and let Nginx own port 80
+printf "disable:\n  - traefik\n" | sudo tee -a /etc/rancher/k3s/config.yaml
+sudo systemctl restart k3s
+
+helm upgrade nginx-ingress ingress-nginx/ingress-nginx \
+  --reuse-values \
+  --set controller.kind=DaemonSet \
+  --set controller.hostNetwork=true \
+  --set controller.daemonset.useHostPort=true \
+  --set controller.service.type=ClusterIP \
+  --set controller.publishService.enabled=false
+```
 
 ## Monitoring
 

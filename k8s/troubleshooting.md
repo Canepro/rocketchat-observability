@@ -637,6 +637,55 @@ kubectl get events --sort-by='.lastTimestamp' | grep rocketchat
 - ✅ With anti-affinity removed: 2 pods running on same node
 - ❌ With anti-affinity (any type): Only 1 pod runs, 2nd stays Pending
 
+### 14.1 Are two Rocket.Chat pods expected to work?
+**Yes.** In monolithic mode, multiple Rocket.Chat pods behind a single Service and Ingress are fully supported. For single-node testing, remove pod anti-affinity so both pods can schedule on the same node. Ensure MongoDB replica set is enabled and healthy.
+
+#### Quick validation
+```bash
+# Expect 2 Running pods
+kubectl get pods -l app=rocketchat -o wide
+
+# Hit API multiple times; responses should succeed (200) consistently
+for i in {1..10}; do curl -s http://52.183.221.89/api/info | jq -r '.success'; done
+
+# Optional: watch logs from both pods while generating traffic
+kubectl logs -l app=rocketchat -f | sed -n 's/.*hostname\":\"\([^"]\+\).*/pod: \1/p'
+```
+
+### 14.2 Hash-based load balancing nuances (nginx)
+This ingress uses hash-based upstream selection:
+- **Annotation:** `nginx.ingress.kubernetes.io/upstream-hash-by: "$$request_uri$$host"`
+- **Effect:** Requests with the same URI+Host tend to hit the same pod (sticky by path), so quick tests to `/api/info` may appear to prefer one pod.
+- **WebSockets:** Upgrade headers are set; long-lived connections remain on the selected pod until reconnect.
+
+#### How to verify distribution
+```bash
+# Vary the path to influence hash and observe both pods serve traffic
+for p in {1..10}; do curl -s "http://52.183.221.89/api/info?x=$p" | jq -r '.instanceId? // .version' ; done
+
+# Or fetch root repeatedly and check nginx access logs (controller)
+kubectl logs -l app.kubernetes.io/name=ingress-nginx --tail=200 | grep -E "/api/info|GET / "
+```
+
+#### Switching to round-robin (optional)
+Remove the `upstream-hash-by` annotation from `nginx-ingress.yaml` for classic round-robin during testing.
+
+### 14.3 404 page not found via public IP
+**Diagnosis outcome:** Kubernetes components were healthy and routing correctly; `/api/info` returned 200 via ingress. The 404 was external to the cluster (browser cache, intermediary proxy, or Azure NSG).
+
+#### Things to check on Azure
+- **NSG rules:** Ensure inbound TCP 80 from Internet to VM is allowed.
+- **Linux firewall:** `sudo ufw status` → allow 80/tcp or disable for testing.
+- **Public IP health:** `curl -I http://52.183.221.89` from an external network.
+- **Browser cache:** Hard refresh or test in an incognito window.
+
+#### In-cluster verification (already confirmed)
+```bash
+kubectl get ingress rocketchat-ingress
+curl -s http://52.183.221.89/api/info | jq
+kubectl logs -l app.kubernetes.io/name=ingress-nginx --tail=200 | grep /api/info
+```
+
 ### 15. MongoDB Connection Issues ✅ RESOLVED
 **Symptoms:**
 ```bash
@@ -1612,7 +1661,7 @@ kubectl logs -l app=rocketchat -f
 
 # Make multiple requests and check which pod handles them
 for i in {1..10}; do
-  curl -s http://52.183.221.89/api/info | grep -o '"version":"[^"]*"' &
+  curl -s http://52.183.221.89/api/info | jq -r '.success' &
 done
 ```
 
@@ -1884,3 +1933,35 @@ watch -n 5 kubectl get pods -l app=rocketchat
 # Monitor resource usage
 kubectl top pods -l app=rocketchat --containers
 ```
+
+### 14.4 Browser shows 404 but curl shows 200 (Traefik vs Nginx)
+**Symptom:** Browser Network tab shows `GET /` → 404 Not Found. From the VM: `curl -I http://52.183.221.89` returns 200 with Rocket.Chat headers.
+
+**Root cause:** In k3s, the built-in Traefik is exposed on host port 80 by default. If Nginx Ingress is installed without host ports, some clients may still hit Traefik and receive its 404, while server-side curls can reach the correct ingress path. Extensions (e.g., ones injecting `inject.js`) and HTTPS upgrades can also interfere.
+
+**Quick fixes:**
+```bash
+# Option A (temporary): Route via Traefik too
+kubectl apply -f k8s/traefik-ingress.yaml
+
+# Option B (preferred): Disable Traefik and let Nginx own port 80
+printf "disable:\n  - traefik\n" | sudo tee -a /etc/rancher/k3s/config.yaml
+sudo systemctl restart k3s
+
+# Then run Nginx as DaemonSet with hostNetwork/hostPort
+helm upgrade nginx-ingress ingress-nginx/ingress-nginx \
+  --reuse-values \
+  --set controller.kind=DaemonSet \
+  --set controller.hostNetwork=true \
+  --set controller.daemonset.useHostPort=true \
+  --set controller.service.type=ClusterIP \
+  --set controller.publishService.enabled=false
+
+# Verify
+curl -I http://52.183.221.89
+```
+
+**Client-side checks:**
+- Use incognito/private window and hard refresh (Ctrl+Shift+R)
+- Disable extensions (look for `inject.js` in console)
+- Ensure using http (not force-upgraded https)

@@ -7,6 +7,7 @@ metadata:
     app: rocketchat
     component: chat
 spec:
+  revisionHistoryLimit: 3  # Limit old ReplicaSets kept for rollbacks
   replicas: 2  # Testing with 2 pods
   minReadySeconds: 10
   strategy:
