@@ -536,6 +536,95 @@ kubectl rollout restart deployment rocketchat
 kubectl get pods -l app=rocketchat -w
 ```
 
+### 14. Pod Anti-Affinity Scheduling Issues
+**Symptoms:**
+```bash
+kubectl get pods -l app=rocketchat
+# NAME                     READY   STATUS    RESTARTS   AGE
+# rocketchat-xxx-yyy       0/1     Pending   0          5m
+# rocketchat-xxx-zzz       0/1     Running  0          5m
+
+# Events show:
+# Warning  FailedScheduling  0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules.
+```
+
+**Root Cause:**
+Pod anti-affinity rules are set to `requiredDuringSchedulingIgnoredDuringExecution`, which means pods MUST run on different nodes. In a single-node cluster (like k3s), this prevents scheduling.
+
+**Solutions:**
+
+#### Fix Anti-Affinity for Single-Node Cluster
+```bash
+# Change required to preferred (soft requirement)
+kubectl edit deployment rocketchat
+
+# Change this section:
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:  # ❌ Remove this
+    - labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - rocketchat
+      topologyKey: kubernetes.io/hostname
+# To this:
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:  # ✅ Use this instead
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+          - rocketchat
+        topologyKey: kubernetes.io/hostname
+```
+
+#### Alternative: Remove Anti-Affinity Entirely
+```bash
+# For single-node testing, remove anti-affinity completely
+kubectl edit deployment rocketchat
+
+# Remove the entire affinity section or comment it out
+# affinity:
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#     - weight: 100
+#       podAffinityTerm:
+#         labelSelector:
+#           matchExpressions:
+#           - key: app
+#             operator: In
+#             values:
+#           - rocketchat
+#         topologyKey: kubernetes.io/hostname
+```
+
+#### Alternative: Scale to Single Replica
+```bash
+# For testing on single node, use only 1 replica
+kubectl scale deployment rocketchat --replicas=1
+
+# Then scale back up when you have more nodes
+kubectl scale deployment rocketchat --replicas=2
+```
+
+#### Verify Fix
+```bash
+# Apply the changes
+kubectl apply -f rocketchat-deployment.yaml
+
+# Check pod scheduling
+kubectl get pods -l app=rocketchat -w
+
+# Check events
+kubectl get events --sort-by='.lastTimestamp' | grep rocketchat
+```
+
 #### ✅ MongoDB Deployment Issues - FULLY RESOLVED
 **Status:** All MongoDB issues fixed and working
 **Issues Resolved:**
