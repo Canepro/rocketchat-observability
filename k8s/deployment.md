@@ -41,29 +41,27 @@ sudo chown $(id -u):$(id -g) ~/.kube/config
 kubectl cluster-info
 ```
 
-### 3. Install Helm v3
+### 3. Install Helm v3 ✅ COMPLETED
 ```bash
-# Option 1: Download and install Helm (recommended)
-curl -L --retry 3 --retry-delay 5 https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz -o helm.tar.gz
-
-# Verify file size (should be around 17MB)
-ls -lh helm.tar.gz
-
-# Extract and install
-tar -zxvf helm.tar.gz
+# ✅ SUCCESSFUL METHOD USED:
+sudo snap remove helm
+cd /tmp
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+tar -zxvf helm-v3.13.0-linux-amd64.tar.gz
 sudo mv linux-amd64/helm /usr/local/bin/helm
-rm -rf linux-amd64 helm.tar.gz
+sudo chmod +x /usr/local/bin/helm
+helm version  # Shows: version.BuildInfo{Version:"v3.13.0", ...}
+```
 
-# Option 2: Use snap (if download fails)
-# sudo snap install helm --classic
+**Alternative methods (if needed):**
+```bash
+# Snap method (may cause segfaults)
+sudo snap install helm --classic
 
-# Option 3: Use apt
-# curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
-# echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-# sudo apt update && sudo apt install helm
-
-# Verify installation
-helm version
+# Apt repository method
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt update && sudo apt install helm
 ```
 
 ### 4. Install Nginx Ingress Controller

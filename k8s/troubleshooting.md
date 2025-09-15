@@ -6,7 +6,30 @@ This guide helps troubleshoot common issues when deploying Rocket.Chat with 2 po
 
 ## Azure VM Setup Issues
 
-### 1. Helm Installation Fails
+### ✅ RESOLVED: Helm Installation Issues
+**Status:** Fixed with manual installation method
+**Solution Used:** Remove snap and install manually from official source
+
+```bash
+# This method worked successfully:
+sudo snap remove helm
+cd /tmp
+wget https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz
+tar -zxvf helm-v3.13.0-linux-amd64.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/helm
+sudo chmod +x /usr/local/bin/helm
+helm version  # Should show: version.BuildInfo{Version:"v3.13.0", ...}
+```
+
+**Common Issues:**
+- Network download failures → Use `wget` instead of `curl`
+- Snap compatibility issues → Remove snap and install manually
+- Architecture mismatches → Verify with `uname -m` (should be x86_64)
+- Segmentation faults → Clean environment installation
+
+---
+
+### 1. Alternative Helm Installation Methods (Reference)
 
 **Symptoms:**
 ```bash
