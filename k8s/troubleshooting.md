@@ -886,8 +886,9 @@ curl -s http://52.183.221.89/api/info | jq -r '.success'
 
 ### Access Information:
 - **URL:** http://52.183.221.89
-- **Pods:** 2 instances with load balancing
+- **Pods:** 2 instances with hash-based load balancing
 - **Admin:** Existing admin user (ADMIN_PASS ignored)
+- **Ingress:** Nginx on port 80 (Traefik disabled)
 - **Status:** ✅ FULLY OPERATIONAL WITH 2 PODS
 
 ### 17. Persistent Pending Pods After Scaling
@@ -1934,10 +1935,12 @@ watch -n 5 kubectl get pods -l app=rocketchat
 kubectl top pods -l app=rocketchat --containers
 ```
 
-### 14.4 Browser shows 404 but curl shows 200 (Traefik vs Nginx)
+### 14.4 Browser shows 404 but curl shows 200 (Traefik vs Nginx) ✅ RESOLVED
 **Symptom:** Browser Network tab shows `GET /` → 404 Not Found. From the VM: `curl -I http://52.183.221.89` returns 200 with Rocket.Chat headers.
 
 **Root cause:** In k3s, the built-in Traefik is exposed on host port 80 by default. If Nginx Ingress is installed without host ports, some clients may still hit Traefik and receive its 404, while server-side curls can reach the correct ingress path. Extensions (e.g., ones injecting `inject.js`) and HTTPS upgrades can also interfere.
+
+**Resolution Applied:** Disabled Traefik and configured Nginx Ingress as DaemonSet with hostNetwork to own port 80.
 
 **Quick fixes:**
 ```bash

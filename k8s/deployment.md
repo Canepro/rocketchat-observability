@@ -6,7 +6,8 @@ This deployment creates a monolithic Rocket.Chat setup running on your Azure VM 
 
 ### 🌐 Access Information
 - **URL**: http://52.183.221.89
-- **Status**: ✅ OPERATIONAL (2 pods)
+- **Status**: ✅ FULLY OPERATIONAL (2 pods)
+- **Ingress**: Nginx on port 80 (Traefik disabled)
 - **Admin**: Existing admin user present; environment ADMIN_PASS may be ignored
 
 ## Azure VM Setup (Fresh Installation) ✅ COMPLETED
@@ -111,10 +112,11 @@ Internal MongoDB Service → MongoDB Pod (replica set enabled)
 
 ### Components ✅ DEPLOYED
 
-- **Rocket.Chat Pods**: 2 running (anti-affinity removed for single-node testing)
+- **Rocket.Chat Pods**: 2 running (anti-affinity removed for single-node testing) ✅
 - **MongoDB Pod**: Single replica with replica set enabled ✅
 - **MongoDB Init Job**: Completed successfully ✅
-- **Nginx Ingress**: Load balancer routing traffic ✅
+- **Nginx Ingress**: DaemonSet with hostNetwork on port 80 ✅
+- **Traefik**: Disabled in k3s configuration ✅
 - **ConfigMap**: Environment variables configured ✅
 - **Service**: ClusterIP for internal load balancing ✅
 - **Pod Disruption Budget**: Configured ✅
@@ -259,15 +261,12 @@ To switch to round‑robin temporarily, remove the `upstream-hash-by` annotation
 
 For production-like setup with external nginx, use the configuration in `external-nginx-config` as a reference.
 
-### Routing on k3s: Traefik vs Nginx
+### Routing on k3s: Traefik vs Nginx ✅ RESOLVED
 On k3s, Traefik runs by default and typically listens on host port 80. If Nginx Ingress is installed without host ports, browsers may still hit Traefik and see a 404 while cluster-side curls work.
 
-Options:
+**Resolution Applied:**
 ```bash
-# Temporary: route via Traefik too
-kubectl apply -f k8s/traefik-ingress.yaml
-
-# Preferred: disable Traefik and let Nginx own port 80
+# Disabled Traefik and configured Nginx to own port 80
 printf "disable:\n  - traefik\n" | sudo tee -a /etc/rancher/k3s/config.yaml
 sudo systemctl restart k3s
 
@@ -275,9 +274,19 @@ helm upgrade nginx-ingress ingress-nginx/ingress-nginx \
   --reuse-values \
   --set controller.kind=DaemonSet \
   --set controller.hostNetwork=true \
-  --set controller.daemonset.useHostPort=true \
-  --set controller.service.type=ClusterIP \
-  --set controller.publishService.enabled=false
+  --set controller.daemonset.useHostPort=true
+```
+
+**Verification:**
+```bash
+# Check Nginx is on port 80
+kubectl get pods -l app.kubernetes.io/name=ingress-nginx -o wide
+
+# Verify Traefik is gone
+kubectl get pods -n kube-system | grep traefik  # Should return nothing
+
+# Test access
+curl -sI http://52.183.221.89 | grep -E "^HTTP|X-Instance-ID"
 ```
 
 ## Monitoring
