@@ -341,7 +341,67 @@ ls -la ~
 cd ~/rocketchat-observability/k8s
 ```
 
-### 11. Ingress Host Validation Issues
+### 10. Nginx Ingress Annotation Issues
+**Symptoms:**
+```bash
+kubectl apply -f nginx-ingress.yaml
+# Error from server (BadRequest): admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: nginx.ingress.kubernetes.io/configuration-snippet annotation cannot be used. Snippet directives are disabled by the Ingress administrator
+```
+
+**Root Cause:**
+The nginx ingress controller has security restrictions that disable certain annotations like `configuration-snippet`.
+
+**Solutions:**
+
+#### Fix the Ingress Configuration
+```bash
+# Remove the problematic configuration-snippet annotation
+# Move WebSocket directives to individual annotations
+
+# In nginx-ingress.yaml, replace:
+# nginx.ingress.kubernetes.io/configuration-snippet: |
+#   proxy_set_header Upgrade $http_upgrade;
+#   proxy_set_header Connection "upgrade";
+#   proxy_buffering off;
+
+# With:
+nginx.ingress.kubernetes.io/proxy-set-headers: |
+  X-Forwarded-Host $host
+  X-Forwarded-Port $server_port
+  X-Forwarded-Proto $scheme
+  X-Real-IP $remote_addr
+  X-Forwarded-For $proxy_add_x_forwarded_for
+  X-Nginx-Proxy true
+  Upgrade $http_upgrade
+  Connection upgrade
+nginx.ingress.kubernetes.io/proxy-buffering: "off"
+nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+```
+
+#### Alternative: Minimal Ingress Configuration
+```bash
+# If you still get annotation errors, use a minimal configuration:
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rocketchat-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rocketchat-service
+            port:
+              number: 80
+```
+
+### 12. Ingress Host Validation Issues
 **Symptoms:**
 ```bash
 kubectl apply -f nginx-ingress.yaml
@@ -408,7 +468,7 @@ kubectl edit ingress rocketchat-ingress
 # nginx.ingress.kubernetes.io/rewrite-target: /
 ```
 
-### 12. Rocket.Chat Pod Startup Issues
+### 13. Rocket.Chat Pod Startup Issues
 **Symptoms:**
 ```bash
 kubectl get pods -l app=rocketchat
