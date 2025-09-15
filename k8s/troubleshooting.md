@@ -225,7 +225,11 @@ sleep 5
 cd ~/rocketchat-observability
 git pull origin true-one-click
 
-# Redeploy the fixed init job
+# Redeploy the fixed init job (use correct path based on your location)
+# If you're in ~/rocketchat-observability/k8s:
+kubectl apply -f mongodb-init-job.yaml
+
+# If you're in ~/rocketchat-observability:
 kubectl apply -f k8s/mongodb-init-job.yaml
 
 # Wait for completion (should be quick now)
