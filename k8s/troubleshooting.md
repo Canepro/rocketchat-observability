@@ -30,6 +30,34 @@ curl http://52.183.221.89
 # Returns nginx 404 (expected - no routes configured yet)
 ```
 
+#### ✅ Repository Cloning Issues
+**Symptoms:**
+```bash
+git clone https://github.com/Canepro/rocketchat-observability.git
+# fatal: could not create work tree dir 'rocketchat-observability': Permission denied
+```
+
+**Root Cause:**
+Trying to clone into a directory without write permissions (like `/` for normal users).
+
+**Solution:**
+```bash
+# Clone into home directory (recommended)
+cd ~
+git clone https://github.com/Canepro/rocketchat-observability.git
+cd rocketchat-observability
+
+# Or clone into a specific directory you can write to
+mkdir -p ~/projects
+cd ~/projects
+git clone https://github.com/Canepro/rocketchat-observability.git
+cd rocketchat-observability
+
+# Verify clone worked
+ls -la
+# Should show k8s/ directory and other files
+```
+
 ```bash
 # Both issues resolved:
 # 1. Helm: Remove snap, manual install
