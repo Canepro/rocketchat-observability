@@ -237,6 +237,22 @@ kubectl edit deployment rocketchat-mongodb
 # Then MongoDB should become ready immediately
 ```
 
+#### 9. Directory Navigation Issues
+```bash
+# Common mistake: wrong directory name
+cd ~/rocketchat-observability  # ✅ Correct
+# Not: cd ~/rocketch            # ❌ Wrong
+
+# Check current directory
+pwd
+
+# List directories in home
+ls -la ~
+
+# Navigate correctly
+cd ~/rocketchat-observability/k8s
+```
+
 ```bash
 # Both issues resolved:
 # 1. Helm: Remove snap, manual install
