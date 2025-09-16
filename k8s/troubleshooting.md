@@ -885,10 +885,10 @@ curl -s http://52.183.221.89/api/info | jq -r '.success'
 ```
 
 ### Access Information:
-- **URL:** http://52.183.221.89
+- **URL:** http://52.183.221.89:30080 (NodePort) or http://52.183.221.89:31229 (LoadBalancer)
 - **Pods:** 2 instances with hash-based load balancing
 - **Admin:** Existing admin user (ADMIN_PASS ignored)
-- **Ingress:** Nginx on port 80 (Traefik disabled)
+- **Ingress:** Nginx NodePort service (port conflicts resolved)
 - **Status:** ✅ FULLY OPERATIONAL WITH 2 PODS
 
 ### 17. Persistent Pending Pods After Scaling
@@ -1940,7 +1940,7 @@ kubectl top pods -l app=rocketchat --containers
 
 **Root cause:** In k3s, the built-in Traefik is exposed on host port 80 by default. If Nginx Ingress is installed without host ports, some clients may still hit Traefik and receive its 404, while server-side curls can reach the correct ingress path. Extensions (e.g., ones injecting `inject.js`) and HTTPS upgrades can also interfere.
 
-**Resolution Applied:** Disabled Traefik and configured Nginx Ingress as DaemonSet with hostNetwork to own port 80.
+**Resolution Applied:** Disabled Traefik and configured Nginx Ingress as NodePort service due to port conflicts with k3s ServiceLB (svclb).
 
 **Quick fixes:**
 ```bash
@@ -1968,3 +1968,30 @@ curl -I http://52.183.221.89
 - Use incognito/private window and hard refresh (Ctrl+Shift+R)
 - Disable extensions (look for `inject.js` in console)
 - Ensure using http (not force-upgraded https)
+
+### 14.5 Nginx Ingress Port Conflicts (svclb) ⚠️ ONGOING
+**Symptom:** Nginx controller pod shows `0/1 nodes are available: 1 node(s) didn't have free ports for the requested pod ports`
+
+**Root cause:** k3s ServiceLB (svclb) pods automatically claim host ports 80/443 when LoadBalancer services are created, preventing DaemonSet with hostPort from scheduling.
+
+**Resolution:**
+```bash
+# Delete conflicting svclb pod
+kubectl delete pod $(kubectl get pods -n kube-system -l svccontroller.k3s.cattle.io/svcname=nginx-ingress-ingress-nginx-controller -o jsonpath='{.items[0].metadata.name}') -n kube-system
+
+# Reconfigure as NodePort to avoid port conflicts
+helm upgrade nginx-ingress ingress-nginx/ingress-nginx \
+  --reuse-values \
+  --set controller.kind=Deployment \
+  --set controller.hostNetwork=false \
+  --set controller.service.type=NodePort \
+  --set controller.service.nodePorts.http=30080 \
+  --set controller.service.nodePorts.https=30443
+
+# Access via NodePort
+curl -sI http://52.183.221.89:30080
+```
+
+**Alternative access ports:**
+- NodePort: http://52.183.221.89:30080
+- LoadBalancer mapped port: http://52.183.221.89:31229 (check `kubectl get svc`)

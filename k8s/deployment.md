@@ -5,9 +5,9 @@
 This deployment creates a monolithic Rocket.Chat setup running on your Azure VM (52.183.221.89), designed to replicate your customer's production environment for testing purposes.
 
 ### 🌐 Access Information
-- **URL**: http://52.183.221.89
+- **URL**: http://52.183.221.89:30080 (NodePort) or http://52.183.221.89:31229 (LoadBalancer)
 - **Status**: ✅ FULLY OPERATIONAL (2 pods)
-- **Ingress**: Nginx on port 80 (Traefik disabled)
+- **Ingress**: Nginx NodePort service (port conflicts resolved)
 - **Admin**: Existing admin user present; environment ADMIN_PASS may be ignored
 
 ## Azure VM Setup (Fresh Installation) ✅ COMPLETED
@@ -115,7 +115,7 @@ Internal MongoDB Service → MongoDB Pod (replica set enabled)
 - **Rocket.Chat Pods**: 2 running (anti-affinity removed for single-node testing) ✅
 - **MongoDB Pod**: Single replica with replica set enabled ✅
 - **MongoDB Init Job**: Completed successfully ✅
-- **Nginx Ingress**: DaemonSet with hostNetwork on port 80 ✅
+- **Nginx Ingress**: NodePort Deployment (port conflicts resolved) ✅
 - **Traefik**: Disabled in k3s configuration ✅
 - **ConfigMap**: Environment variables configured ✅
 - **Service**: ClusterIP for internal load balancing ✅
@@ -262,31 +262,37 @@ To switch to round‑robin temporarily, remove the `upstream-hash-by` annotation
 For production-like setup with external nginx, use the configuration in `external-nginx-config` as a reference.
 
 ### Routing on k3s: Traefik vs Nginx ✅ RESOLVED
-On k3s, Traefik runs by default and typically listens on host port 80. If Nginx Ingress is installed without host ports, browsers may still hit Traefik and see a 404 while cluster-side curls work.
+On k3s, Traefik runs by default and typically listens on host port 80. Additionally, k3s ServiceLB (svclb) automatically claims host ports when LoadBalancer services are created, causing port conflicts.
 
 **Resolution Applied:**
 ```bash
-# Disabled Traefik and configured Nginx to own port 80
+# 1. Disabled Traefik
 printf "disable:\n  - traefik\n" | sudo tee -a /etc/rancher/k3s/config.yaml
 sudo systemctl restart k3s
 
+# 2. Resolved svclb port conflicts by using NodePort
 helm upgrade nginx-ingress ingress-nginx/ingress-nginx \
   --reuse-values \
-  --set controller.kind=DaemonSet \
-  --set controller.hostNetwork=true \
-  --set controller.daemonset.useHostPort=true
+  --set controller.kind=Deployment \
+  --set controller.hostNetwork=false \
+  --set controller.service.type=NodePort \
+  --set controller.service.nodePorts.http=30080 \
+  --set controller.service.nodePorts.https=30443
 ```
 
 **Verification:**
 ```bash
-# Check Nginx is on port 80
-kubectl get pods -l app.kubernetes.io/name=ingress-nginx -o wide
+# Check Nginx controller is running
+kubectl get pods -l app.kubernetes.io/name=ingress-nginx
 
-# Verify Traefik is gone
-kubectl get pods -n kube-system | grep traefik  # Should return nothing
+# Check service ports
+kubectl get svc nginx-ingress-ingress-nginx-controller
 
-# Test access
-curl -sI http://52.183.221.89 | grep -E "^HTTP|X-Instance-ID"
+# Test access via NodePort
+curl -sI http://52.183.221.89:30080 | grep -E "^HTTP|X-Instance-ID"
+
+# Or via LoadBalancer mapped port (check service output for actual port)
+curl -sI http://52.183.221.89:31229 | grep -E "^HTTP|X-Instance-ID"
 ```
 
 ## Monitoring
