@@ -183,7 +183,27 @@ The stack works on any cloud provider:
 
 ### Option 3: Kubernetes
 
-For Kubernetes deployment, see the `k8s/` directory (if available).
+For Kubernetes deployment with multiple Rocket.Chat pods, see the comprehensive `k8s/` directory which includes:
+
+- **Multi-pod deployment**: 2+ Rocket.Chat instances with load balancing
+- **Complete setup scripts**: Automated deployment with `./deploy.sh`
+- **Nginx Ingress**: Hash-based load balancing configuration
+- **MongoDB with replica set**: Production-ready database setup
+
+**Key Considerations:**
+- **Single-node clusters**: Remove pod anti-affinity rules
+- **Load balancing**: Hash-based routing for session consistency
+- **Port conflicts**: Use NodePort services on k3s
+
+For detailed findings and challenges, see **[Multi-Pod Kubernetes Summary](../docs/MULTI_POD_DEPLOYMENT_SUMMARY.md)**.
+
+**Quick Start:**
+```bash
+cd k8s
+chmod +x deploy.sh
+./deploy.sh deploy
+./deploy.sh status
+```
 
 ## Port Configuration
 

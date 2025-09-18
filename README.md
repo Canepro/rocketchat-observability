@@ -10,6 +10,7 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Upgrade from older versions and understand the new overlay architecture
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions with overlay-specific scenarios
 - **[Lessons Learned](docs/LESSONS_LEARNED.md)** - Journey from debugging hell to one-click deployment, architecture decisions and improvements
+- **[Multi-Pod Kubernetes Summary](docs/MULTI_POD_DEPLOYMENT_SUMMARY.md)** - Findings and challenges from 2+ Rocket.Chat pods deployment on Kubernetes
 
 ## 📖 Table of Contents
 
@@ -45,6 +46,7 @@ A production-ready, turnkey stack with complete observability and monitoring. Pe
 - **Bulletproof Reliability**: Systematic fixes for MongoDB replica sets, Traefik health checks, and Grafana configuration
 - **Beautiful Visual Experience**: Enhanced UX with progress indicators, color-coded output, and professional deployment feedback
 - **Engine-agnostic**: Works on Docker or Podman (rootless or rootful)
+- **Kubernetes Support**: Multi-pod Rocket.Chat deployment with load balancing (see [Multi-Pod Summary](docs/MULTI_POD_DEPLOYMENT_SUMMARY.md))
 - **Zero port conflicts**: Demo overlay uses ephemeral ports automatically
 - **Production-ready**: File-provider Traefik (no docker.sock), single edge for all apps
 - **Complete observability**: Rocket.Chat, MongoDB, Node Exporter, Traefik, and NATS metrics

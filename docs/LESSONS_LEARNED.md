@@ -372,6 +372,54 @@ After achieving technical robustness, we focused on transforming the user experi
 ### **Final Result:**
 A **beautiful, enterprise-quality deployment experience** that guides users through any issues and celebrates successful completion with professional visual feedback.
 
+## Kubernetes Multi-Pod Deployment Findings
+
+### Background
+Following the Docker Compose improvements, we conducted a comprehensive evaluation of Rocket.Chat deployment on Kubernetes with multiple pods (without microservices enabled). This testing revealed significant differences between container orchestration platforms and single-node vs multi-node cluster behaviors.
+
+### Key Findings from Multi-Pod Kubernetes Testing
+
+#### 🚨 Critical Single-Node Constraint
+**Issue**: Pod anti-affinity rules (even "preferred") completely block 2nd pod scheduling on single-node clusters.
+
+**Impact**: Even with `preferredDuringSchedulingIgnoredDuringExecution`, Kubernetes refuses to schedule a second pod when it can avoid doing so, effectively making single-node multi-pod testing impossible with anti-affinity enabled.
+
+**Solution**: Complete removal of affinity rules required for single-node testing environments.
+
+#### 🟡 MongoDB Replica Set Complexity
+**Issue**: Replica set initialization requires precise MongoDB client paths and timing.
+
+**Findings**:
+- Bitnami MongoDB image uses `/opt/bitnami/mongodb/bin/mongosh` instead of `mongo`
+- Health probes must use correct client paths
+- Init jobs can enter infinite loops with wrong client commands
+
+#### 🟡 k3s-Specific Networking Challenges
+**Issue**: k3s ServiceLB (svclb) automatically claims host ports, preventing standard ingress deployment.
+
+**Solution**: Use NodePort services instead of LoadBalancer to avoid port conflicts.
+
+### Load Balancing Insights
+- **Hash-based routing** provides better session consistency than round-robin
+- **WebSocket connections** remain sticky to assigned pods
+- **Request distribution** requires varied testing to verify both pods active
+
+### Architecture Decision: Monolithic vs Microservices
+**Current Recommendation**: Continue using monolithic Rocket.Chat for simpler deployments. Microservices evaluation should wait until 3+ pod scaling requirements emerge.
+
+**Rationale**:
+- Monolithic mode proven reliable with proper load balancing
+- Simpler operational complexity
+- Sufficient for most use cases
+
+### Production Readiness Assessment
+**Single-Node Testing**: ✅ Suitable for development/demonstration
+**Multi-Node Production**: 🔄 Requires additional validation
+**Load Balancing**: ✅ Verified functional
+**High Availability**: ⚠️ Replica set configured but not fully tested
+
+For complete findings, see **[Multi-Pod Kubernetes Summary](MULTI_POD_DEPLOYMENT_SUMMARY.md)**.
+
 ## Future Considerations
 
 ### Potential Enhancements
